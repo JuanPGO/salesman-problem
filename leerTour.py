@@ -1,13 +1,12 @@
 # Importado de librerías
 import pprint as pp
 
-def cargarCaso(rutaArchivo:str)->dict:
+def cargarTour(rutaArchivo:str)->dict:
     
     # Inicializar / declarar
     caso = {
-        'pais': "",
         'dimension': 0,                
-        'coordenadas': [],
+        'tour': [],
     }
     
     with open(rutaArchivo, 'r') as f:        
@@ -19,15 +18,11 @@ def cargarCaso(rutaArchivo:str)->dict:
 
             # Sección de servicios
             if i <= numero_ciudades:
-                if i == 1:
-                    caso['pais'] = arreglo_linea[5:]
-                elif i == 4:
-                    caso['dimension'] = int(arreglo_linea[2])
-                elif i > 6 and len(caso['coordenadas']) < caso['dimension']:
-                    caso['coordenadas'].append({
-                            'latitud': float(arreglo_linea[1]),
-                            'longitud':float(arreglo_linea[2])
-                            })
+                if i == 3:
+                    caso['dimension'] = int(arreglo_linea[1])
+                if i > 4 and len(caso['tour']) <= caso['dimension']:
+                    caso['tour'].append(int(arreglo_linea[0]))
+    
             
             # Subíndice de servicios / líneas    
             # print("depuracion",i+1)
@@ -35,8 +30,8 @@ def cargarCaso(rutaArchivo:str)->dict:
             
     return caso
 
-# # Llamado de prueba
-# caso1 = cargarCaso('data/wi29.tsp')
+# Llamado de prueba
+# caso1 = cargarTour('data/eg7146.tour.txt')
 # pp.pprint(caso1)
 
 
