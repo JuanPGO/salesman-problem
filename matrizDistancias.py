@@ -63,3 +63,6 @@ tour = cargarTour("data/wi29.tour.txt")
 distanciaTourEgipto = distanciaTour(tour, distancias)
 print("Usando la matriz de distancias")
 print("La distancia total del tour es:", distanciaTourEgipto)
+
+
+
