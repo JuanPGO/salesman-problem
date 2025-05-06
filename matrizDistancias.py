@@ -48,11 +48,11 @@ def distanciaTour(tour:dict, distancias:list) -> int:
     return longitud_tour
 
 # Cargar el caso de prueba
-caso = cargarCaso("data/wi29.tsp")
+# caso = cargarCaso("data/wi29.tsp")
 # Calcular la matriz de distancias
-distancias = matrizEuclidiana(caso)
+# distancias = matrizEuclidiana(caso)
 # Cargar el tour de referencia
-tour = cargarTour("data/wi29.tour.txt")
+# tour = cargarTour("data/wi29.tour.txt")
 
 # Imprimir información para depuración
 # print(f"Dimensión del caso: {caso['dimension']}")
@@ -60,9 +60,9 @@ tour = cargarTour("data/wi29.tour.txt")
 # print(f"Longitud del tour: {len(tour['tour'])}")
 
 # Calcular la distancia total del tour
-distanciaTourEgipto = distanciaTour(tour, distancias)
-print("Usando la matriz de distancias")
-print("La distancia total del tour es:", distanciaTourEgipto)
+# distanciaTourEgipto = distanciaTour(tour, distancias)
+# print("Usando la matriz de distancias")
+# print("La distancia total del tour es:", distanciaTourEgipto)
 
 
 
