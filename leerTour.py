@@ -20,8 +20,10 @@ def cargarTour(rutaArchivo:str)->dict:
             if i <= numero_ciudades:
                 if i == 3:
                     caso['dimension'] = int(arreglo_linea[1])
-                if i > 4 and len(caso['tour']) <= caso['dimension']:
-                    caso['tour'].append(int(arreglo_linea[0]))
+                if i > 4 and len(caso['tour']) < caso['dimension']:
+                    # Solo añadir si es un valor válido (no -1)
+                    if arreglo_linea[0] != '-1':
+                        caso['tour'].append(int(arreglo_linea[0]))
     
             
             # Subíndice de servicios / líneas    

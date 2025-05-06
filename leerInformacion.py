@@ -25,8 +25,9 @@ def cargarCaso(rutaArchivo:str)->dict:
                     caso['dimension'] = int(arreglo_linea[2])
                 elif i > 6 and len(caso['coordenadas']) < caso['dimension']:
                     caso['coordenadas'].append({
-                            'latitud': float(arreglo_linea[1]),
-                            'longitud':float(arreglo_linea[2])
+                            'id': int(arreglo_linea[0]),
+                            'x': float(arreglo_linea[1]),
+                            'y':float(arreglo_linea[2])
                             })
             
             # Subíndice de servicios / líneas    
