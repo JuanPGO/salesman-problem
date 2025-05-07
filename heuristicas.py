@@ -2,7 +2,7 @@ from leerInformacion import cargarCaso
 from matrizDistancias import matrizEuclidiana, distanciaTour
 from codificacionVecindarios import *
 
-caso = cargarCaso("data/gr9882.tsp")
+caso = cargarCaso("data/wi29.tsp")
 matriz = matrizEuclidiana(caso)
 
 def heuristicaVecinoMasCercano(caso:dict, matriz:list) -> dict:
