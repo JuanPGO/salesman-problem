@@ -1,7 +1,8 @@
 from leerInformacion import cargarCaso
 from matrizDistancias import matrizEuclidiana, distanciaTour
+from codificacionVecindarios import *
 
-caso = cargarCaso("data/ca4663.tsp")
+caso = cargarCaso("data/wi29.tsp")
 matriz = matrizEuclidiana(caso)
 
 def heuristicaVecinoMasCercano(caso:dict, matriz:list) -> dict:
@@ -115,3 +116,8 @@ resultado = heuristicaInsercionMasCercana(caso, matriz)
 distancia = distanciaTour(resultado, matriz)
 print(resultado)
 print(distancia)
+
+vecindario1 = two_opt(resultado['tour'])  
+vecindario1A = ampliar_vencindario(vecindario1,matriz)
+vecindario1A.sort(key=lambda v:v['fo'])
+print(vecindario1A[0])
