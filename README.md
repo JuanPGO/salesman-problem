@@ -20,9 +20,6 @@ El TSP consiste en encontrar la ruta más corta que recorre todas las ciudades d
 
 ### 3. Vecindarios
 
-- **Swap2**: Intercambia dos ciudades cualesquiera del tour
-- **Insert Izquierda**: Mueve una ciudad a una posición a la izquierda en el tour
-- **Insert Derecha**: Mueve una ciudad a una posición a la derecha en el tour
 - **2-opt**: Invierte un segmento del tour para eliminar cruces
 
 ### 4. Búsqueda Local
@@ -32,10 +29,8 @@ El TSP consiste en encontrar la ruta más corta que recorre todas las ciudades d
 
 ### 5. Perturbación
 
-- **Double Bridge**: Divide el tour en 4 segmentos y los reorganiza
-- **Multi Swap**: Realiza múltiples intercambios aleatorios
-- **Sección Inversa**: Invierte una sección aleatoria del tour
-- **Perturbación Múltiple**: Combina diferentes tipos de perturbaciones
+- **3-opt**: Elimina 3 aristas del tour y las reconecta de una manera diferente
+- **Perturbación Parcial**: Perturba una parte del tour manteniendo otra parte intacta
 
 ### 6. Metaheurística ILS
 
@@ -125,10 +120,8 @@ mejor_resultado = ejecutar_ils_completo(caso, matriz)
 
 ### codificacionVecindarios.py
 
-Contiene la implementación de diferentes operadores de vecindario que generan soluciones cercanas a una dada, esenciales para los algoritmos de búsqueda local:
+Contiene la implementación del operador de vecindario que genera soluciones cercanas a una dada, esencial para los algoritmos de búsqueda local:
 
-- swap2: Intercambia dos ciudades del tour
-- insert_izquierda/derecha: Mueve una ciudad a otra posición
 - two_opt: Operador de inversión para eliminar cruces
 
 ### busquedaLocal.py
@@ -142,8 +135,8 @@ Implementa algoritmos de búsqueda local para encontrar óptimos locales a parti
 
 Contiene mecanismos para realizar modificaciones más severas a las soluciones, permitiendo escapar de óptimos locales:
 
-- perturbacion_double_bridge: Operación de cortar y reconectar 4 segmentos
-- Múltiples estrategias de perturbación con diferentes grados de intensidad
+- perturbacion_3opt: Elimina 3 aristas del tour y las reconecta de manera diferente
+- perturbacion_parcial: Perturba solo una parte del tour, manteniendo otra parte intacta
 
 ### ils.py
 
