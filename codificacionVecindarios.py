@@ -2,8 +2,16 @@
 import time
 import random
 import pprint as pp
-from typing import List
+from typing import List, Dict
 from copy import copy, deepcopy
+
+# Añadir un diccionario global para almacenar distancias pre-calculadas
+distancias_cache = {}
+
+# Limpiar el caché si necesitamos liberar memoria
+def limpiar_cache_distancias():
+    global distancias_cache
+    distancias_cache.clear()
 
 # Cómo decodificarla:
 """
@@ -137,16 +145,42 @@ def swap2(s_i:list)->List[list]:
 
 
 def two_opt(s_i:list)->List[list]:
-    #Inicializar vecindario
+    """
+    Implementación eficiente del vecindario 2-opt.
+    Invierte segmentos del tour para eliminar cruces.
+    
+    Args:
+        s_i: Lista de índices que representa el tour actual
+        
+    Returns:
+        Lista de tours vecinos generados mediante 2-opt
+    """
+    n = len(s_i)
     vecindario = []
-
-    for i in range(1, len(s_i) - 2):         # excluye el primer índice (0) y penúltimo
-        for j in range(i + 1, len(s_i) - 1): # excluye el último índice (n-1)
-            nuevo_vecino = copy(s_i)
-            nuevo_vecino[i:j+1] = reversed(nuevo_vecino[i:j+1])
-            
-            if nuevo_vecino not in vecindario and nuevo_vecino != s_i:
-                vecindario.append(nuevo_vecino)
+    
+    # Generar un número limitado de vecinos para instancias grandes
+    if n > 100:
+        # Para instancias muy grandes, muestrear aleatoriamente
+        posiciones = list(range(1, n - 2))
+        random.shuffle(posiciones)
+        posiciones = posiciones[:min(len(posiciones), 50)]  # Limitar a 50 posiciones
+        
+        for i in posiciones:
+            for j in range(i + 1, min(i + 20, n - 1)):  # Limitar el rango de j
+                nuevo_vecino = copy(s_i)
+                nuevo_vecino[i:j+1] = reversed(nuevo_vecino[i:j+1])
+                
+                if nuevo_vecino not in vecindario and nuevo_vecino != s_i:
+                    vecindario.append(nuevo_vecino)
+    else:
+        # Para instancias pequeñas o medianas, generar todos los vecinos
+        for i in range(1, n - 2):
+            for j in range(i + 1, n - 1):
+                nuevo_vecino = copy(s_i)
+                nuevo_vecino[i:j+1] = reversed(nuevo_vecino[i:j+1])
+                
+                if nuevo_vecino not in vecindario and nuevo_vecino != s_i:
+                    vecindario.append(nuevo_vecino)
     
     return vecindario
 
@@ -160,7 +194,7 @@ def comparar_vecindarios(vec1, vec2):
     return set1 == set2
 
 # Ampliar el vecindario / calcular la función objetivo o la calidad de cada vecino
-def ampliar_vencindario(vecindario:List[list],  distancias:list):
+def ampliar_vencindario(vecindario:List[list], distancias:list):
     vecindario_Ampliado = []
     for vecino in vecindario:
         vecindario_Ampliado.append({
@@ -169,10 +203,27 @@ def ampliar_vencindario(vecindario:List[list],  distancias:list):
         })
     return vecindario_Ampliado
 
+def calcular_clave_tour(tour):
+    """
+    Genera una clave única para un tour para usarla en el caché de distancias
+    """
+    # Convertir lista a tupla para que sea hashable
+    return tuple(tour)
+
 def distanciaTourVecino(tour:list, distancias:list) -> int:
     """
     Calcula la distancia total de un tour dado usando la matriz de distancias.
+    Usa un caché para evitar recalcular distancias ya calculadas.
     """
+    global distancias_cache
+    
+    # Crear clave única para el tour
+    clave_tour = calcular_clave_tour(tour)
+    
+    # Si ya tenemos este tour en caché, retornar la distancia guardada
+    if clave_tour in distancias_cache:
+        return distancias_cache[clave_tour]
+    
     longitud_tour = 0
     
     # Recorrer el tour y sumar las distancias
@@ -188,6 +239,10 @@ def distanciaTourVecino(tour:list, distancias:list) -> int:
     indiceNodoInicial = tour[0] - 1
     
     longitud_tour += distancias[indiceNodoFinal][indiceNodoInicial]
+    
+    # Guardar en caché para uso futuro (solo si el caché no es muy grande)
+    if len(distancias_cache) < 10000:  # Limitar el tamaño del caché
+        distancias_cache[clave_tour] = longitud_tour
     
     return longitud_tour
 
