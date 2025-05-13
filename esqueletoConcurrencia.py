@@ -130,12 +130,12 @@ def vecinos_concurrentes(s_i:list):
 
 ########### SECCION PRINCIPAL ###########
 
-if __name__ == '__main__':
-    #resultado = estrategia_paralelo()
-    resultado = vecinos_concurrentes(s_0)
-    print("-----------------------")
-    for operacion, datos in resultado:
-        print(f"Operación: {operacion}")
-        print(f"  fo: {datos['fo']}")
-        print(f"  s_i: {datos['s_i']}")
-        print("-----------------------\n")
+# if __name__ == '__main__':
+#     #resultado = estrategia_paralelo()
+#     resultado = vecinos_concurrentes(s_0)
+#     print("-----------------------")
+#     for operacion, datos in resultado:
+#         print(f"Operación: {operacion}")
+#         print(f"  fo: {datos['fo']}")
+#         print(f"  s_i: {datos['s_i']}")
+#         print("-----------------------\n")
