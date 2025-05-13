@@ -112,12 +112,12 @@ def heuristicaInsercionMasCercana(caso:dict, matriz:list) -> dict:
     
     return resultado
 
-resultado = heuristicaInsercionMasCercana(caso, matriz)
-distancia = distanciaTour(resultado, matriz)
-print(resultado)
-print(distancia)
+# resultado = heuristicaInsercionMasCercana(caso, matriz)
+# distancia = distanciaTour(resultado, matriz)
+# print(resultado)
+# print(distancia)
 
-vecindario1 = two_opt(resultado['tour'])  
-vecindario1A = ampliar_vencindario(vecindario1,matriz)
-vecindario1A.sort(key=lambda v:v['fo'])
-print(vecindario1A[0])
+# vecindario1 = two_opt(resultado['tour'])  
+# vecindario1A = ampliar_vencindario(vecindario1,matriz)
+# vecindario1A.sort(key=lambda v:v['fo'])
+# print(vecindario1A[0])
