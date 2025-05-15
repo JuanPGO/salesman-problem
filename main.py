@@ -6,6 +6,9 @@ import time
 import os
 import matplotlib.pyplot as plt
 from typing import List, Dict
+import numpy as np
+import multiprocessing as mp
+from time import perf_counter
 
 # Importar todos los módulos necesarios
 from leerInformacion import cargarCaso
@@ -16,6 +19,7 @@ from codificacionVecindarios import two_opt
 from busquedaLocal import busqueda_local_mejor_mejora, busqueda_local_primera_mejora, ejecutar_busqueda_local
 from perturbacion import perturbacion_3opt, perturbacion_parcial
 from ils import ils_algorithm, ejecutar_ils_completo
+from esqueletoConcurrencia import vecinos_concurrentes
 import random
 
 def ejecutar_comparativa_completa(archivo_instancia: str) -> Dict:
@@ -205,6 +209,10 @@ def ejecutar_algoritmo_genetico(archivo_instancia: str) -> Dict:
     print(f"Dimensión: {caso['dimension']} ciudades")
     print("="*60)
     
+    # Calcular tamaño deseado de la población (mitad de la dimensión, redondeando hacia arriba)
+    tam_poblacion_deseado = round(caso['dimension'] / 2)
+    print(f"Tamaño de población deseado: {tam_poblacion_deseado} individuos")
+    
     # Almacenar resultados
     resultados = {}
     
@@ -282,6 +290,47 @@ def ejecutar_algoritmo_genetico(archivo_instancia: str) -> Dict:
         print(f"No se pudo ejecutar Christofides: {e}")
         población_inicial = [individuo1, individuo2, individuo3, individuo4]
     
+    # Generar individuos adicionales para alcanzar el tamaño deseado de población
+    print("\nGenerando individuos adicionales mediante perturbaciones concurrentes...")
+    
+    # Función para verificar si un tour es único en la población
+    def es_tour_unico(tour, poblacion):
+        return not any(np.array_equal(np.array(ind['tour']), np.array(tour)) for ind in poblacion)
+    
+    # Obtener tours semilla de las heurísticas
+    tours_semilla = [ind['tour'] for ind in población_inicial]
+    
+    # Generar perturbaciones de forma concurrente
+    # Ajustar el número de perturbaciones según el tamaño deseado
+    n_perturbaciones_por_tipo = max(2, (tam_poblacion_deseado - len(población_inicial)) // (5 * len(tours_semilla)) + 1)
+    
+    print(f"Generando {n_perturbaciones_por_tipo} perturbaciones por tipo para cada tour semilla...")
+    perturbaciones = generar_perturbaciones_concurrentes(tours_semilla, matriz, n_perturbaciones_por_tipo)
+    
+    # Ordenar perturbaciones por calidad (menor FO es mejor)
+    perturbaciones.sort(key=lambda x: x['fo'])
+    
+    # Añadir perturbaciones a la población, evitando duplicados
+    for perturbacion in perturbaciones:
+        if len(población_inicial) >= tam_poblacion_deseado:
+            break
+            
+        if es_tour_unico(perturbacion['tour'], población_inicial):
+            nuevo_individuo = {
+                'tour': perturbacion['tour'],
+                'fo': perturbacion['fo']
+            }
+            población_inicial.append(nuevo_individuo)
+            
+            # Mostrar información
+            indice = len(población_inicial)
+            print(f"Individuo {indice}: FO={perturbacion['fo']} (perturbación {perturbacion['tipo']})")
+            print(f"   Tour: {perturbacion['tour']}")
+    
+    print(f"\nPoblación inicial generada: {len(población_inicial)} individuos de {tam_poblacion_deseado} deseados")
+    if len(población_inicial) < tam_poblacion_deseado:
+        print(f"Advertencia: No se pudo generar la población completa, se generaron {len(población_inicial)} individuos")
+    
     # 2. Ejecutar algoritmo genético
     print("\n2. EJECUCIÓN DEL ALGORITMO GENÉTICO")
     print("-"*40)
@@ -306,30 +355,52 @@ def ejecutar_algoritmo_genetico(archivo_instancia: str) -> Dict:
     
     inicio_ga = time.time()
     
+    # Número de generaciones sin mejora
+    gen_sin_mejora = 0
+    max_gen_sin_mejora = 20  # Criterio de parada si no hay mejoras
+    
+    # Tamaño de la generación concurrente (cuántos descendientes generar a la vez)
+    tamaño_generacion = max(10, tam_población // 2)
+    
     for gen in range(1, max_generaciones + 1):
-        # Selección de padres por torneo binario
-        padre1 = selección_torneo(población)
-        padre2 = selección_torneo(población)
+        # Generar descendencia de forma concurrente
+        print(f"\nGeneración {gen}: Generando {tamaño_generacion} descendientes concurrentemente...")
+        descendientes = generar_descendencia_concurrente(población, matriz, tamaño_generacion, prob_mutación)
         
-        # Cruce OX (Order Crossover)
-        hijo = cruce_ox(padre1['tour'], padre2['tour'])
+        # Ordenar descendientes por calidad (menor FO es mejor)
+        descendientes.sort(key=lambda ind: ind['fo'])
         
-        # Mutación con probabilidad
-        if random.random() < prob_mutación:
-            hijo = mutación_2opt(hijo)
+        # Mejor descendiente de esta generación
+        mejor_descendiente = descendientes[0]
         
-        # Evaluar el hijo
-        fo_hijo = calcular_fo(hijo, matriz)
-        hijo_evaluado = {'tour': hijo, 'fo': fo_hijo}
+        # Verificar si hay mejora global
+        hay_mejora = False
         
-        # Reemplazo en la población siguiendo el esquema de Chu-Beasley
-        reemplazo_chu_beasley(población, hijo_evaluado)
+        # Intentar incorporar los mejores descendientes en la población
+        for hijo in descendientes:
+            # Reemplazo en la población siguiendo el esquema de Chu-Beasley
+            reemplazado = reemplazo_chu_beasley(población, hijo)
+            
+            # Si se realizó un reemplazo y mejoró el mejor global, registrarlo
+            if reemplazado and población[0]['fo'] < mejor_individuo['fo']:
+                mejor_individuo = población[0]
+                historial_mejoras.append((gen, mejor_individuo['fo']))
+                hay_mejora = True
+                gen_sin_mejora = 0
+                print(f"Mejora encontrada: FO = {mejor_individuo['fo']}")
         
-        # Actualizar el mejor global
-        if población[0]['fo'] < mejor_individuo['fo']:
-            mejor_individuo = población[0]
-            historial_mejoras.append((gen, mejor_individuo['fo']))
-            print(f"Generación {gen}: Mejor FO = {mejor_individuo['fo']}")
+        # Si no hubo mejora, incrementar contador
+        if not hay_mejora:
+            gen_sin_mejora += 1
+        
+        # Mostrar información cada 10 generaciones
+        if gen % 10 == 0 or hay_mejora:
+            print(f"Generación {gen}: Mejor FO = {mejor_individuo['fo']}, Generaciones sin mejora: {gen_sin_mejora}")
+        
+        # Criterio de parada si no hay mejoras durante muchas generaciones
+        if gen_sin_mejora >= max_gen_sin_mejora:
+            print(f"Terminando la búsqueda: {max_gen_sin_mejora} generaciones sin mejora")
+            break
     
     tiempo_ga = time.time() - inicio_ga
     
@@ -419,6 +490,9 @@ def reemplazo_chu_beasley(población, hijo):
     Reemplazo siguiendo el esquema de Chu-Beasley:
     1. El hijo solo reemplaza a un individuo si es mejor
     2. Se reemplaza al peor individuo que sea diferente al hijo
+    
+    Returns:
+        bool: True si se realizó un reemplazo, False en caso contrario
     """
     # Ordenar población por FO (menor es mejor)
     población.sort(key=lambda ind: ind['fo'])
@@ -442,6 +516,9 @@ def reemplazo_chu_beasley(población, hijo):
             población[indice_reemplazo] = hijo
             # Reordenar la población
             población.sort(key=lambda ind: ind['fo'])
+            return True
+    
+    return False
 
 def generar_grafica_convergencia_ga(resultados: Dict, nombre_instancia: str):
     """
@@ -553,6 +630,270 @@ def generar_graficas_comparativas(resultados: Dict, nombre_instancia: str):
     
     plt.close('all')
     print(f"Gráficas guardadas en directorio 'graficas/'")
+
+# Funciones para perturbaciones concurrentes
+def aplicar_perturbacion_2opt(lista_compartida, tour_base, matriz, n_perturbaciones=1):
+    n = len(tour_base)
+    mejor_tour = None
+    mejor_fo = float('inf')
+    
+    for _ in range(n_perturbaciones):
+        # Perturbación mediante inversión de un segmento (2-opt)
+        nuevo_tour = tour_base.copy()
+        i = random.randint(1, n-2)
+        j = random.randint(i+1, n-1)
+        nuevo_tour[i:j+1] = reversed(nuevo_tour[i:j+1])
+        
+        # Calcular FO
+        fo = calcular_fo(nuevo_tour, matriz)
+        
+        if fo < mejor_fo:
+            mejor_fo = fo
+            mejor_tour = nuevo_tour
+    
+    if mejor_tour:
+        resultado = {
+            'tour': mejor_tour,
+            'fo': mejor_fo,
+            'tipo': '2opt'
+        }
+        lista_compartida.append(resultado)
+
+def aplicar_perturbacion_swap(lista_compartida, tour_base, matriz, n_perturbaciones=1):
+    n = len(tour_base)
+    mejor_tour = None
+    mejor_fo = float('inf')
+    
+    for _ in range(n_perturbaciones):
+        # Perturbación mediante intercambio de dos ciudades
+        nuevo_tour = tour_base.copy()
+        num_swaps = random.randint(1, min(5, n//10 + 1))
+        
+        for _ in range(num_swaps):
+            i, j = random.sample(range(n), 2)
+            nuevo_tour[i], nuevo_tour[j] = nuevo_tour[j], nuevo_tour[i]
+        
+        # Calcular FO
+        fo = calcular_fo(nuevo_tour, matriz)
+        
+        if fo < mejor_fo:
+            mejor_fo = fo
+            mejor_tour = nuevo_tour
+    
+    if mejor_tour:
+        resultado = {
+            'tour': mejor_tour,
+            'fo': mejor_fo,
+            'tipo': 'swap'
+        }
+        lista_compartida.append(resultado)
+
+def aplicar_perturbacion_insert(lista_compartida, tour_base, matriz, n_perturbaciones=1):
+    n = len(tour_base)
+    mejor_tour = None
+    mejor_fo = float('inf')
+    
+    for _ in range(n_perturbaciones):
+        # Perturbación mediante inserción de una ciudad en otra posición
+        nuevo_tour = tour_base.copy()
+        num_inserts = random.randint(1, min(5, n//10 + 1))
+        
+        for _ in range(num_inserts):
+            i = random.randint(0, n-1)
+            j = random.randint(0, n-1)
+            if i != j:
+                ciudad = nuevo_tour.pop(i)
+                nuevo_tour.insert(j, ciudad)
+        
+        # Calcular FO
+        fo = calcular_fo(nuevo_tour, matriz)
+        
+        if fo < mejor_fo:
+            mejor_fo = fo
+            mejor_tour = nuevo_tour
+    
+    if mejor_tour:
+        resultado = {
+            'tour': mejor_tour,
+            'fo': mejor_fo,
+            'tipo': 'insert'
+        }
+        lista_compartida.append(resultado)
+
+def aplicar_perturbacion_scramble(lista_compartida, tour_base, matriz, n_perturbaciones=1):
+    n = len(tour_base)
+    mejor_tour = None
+    mejor_fo = float('inf')
+    
+    for _ in range(n_perturbaciones):
+        # Perturbación mediante aleatorización de un segmento
+        nuevo_tour = tour_base.copy()
+        i = random.randint(0, n-3)
+        longitud = random.randint(2, min(n//3, 10))
+        j = min(i + longitud, n-1)
+        segmento = nuevo_tour[i:j+1]
+        random.shuffle(segmento)
+        nuevo_tour[i:j+1] = segmento
+        
+        # Calcular FO
+        fo = calcular_fo(nuevo_tour, matriz)
+        
+        if fo < mejor_fo:
+            mejor_fo = fo
+            mejor_tour = nuevo_tour
+    
+    if mejor_tour:
+        resultado = {
+            'tour': mejor_tour,
+            'fo': mejor_fo,
+            'tipo': 'scramble'
+        }
+        lista_compartida.append(resultado)
+
+def aplicar_perturbacion_3opt(lista_compartida, tour_base, matriz, n_perturbaciones=1):
+    n = len(tour_base)
+    mejor_tour = None
+    mejor_fo = float('inf')
+    
+    for _ in range(n_perturbaciones):
+        # Implementación simple de 3-opt (tres cortes en el tour)
+        nuevo_tour = tour_base.copy()
+        try:
+            puntos_corte = sorted(random.sample(range(1, n), 3))
+            a, b, c = puntos_corte
+            
+            # Una de las posibles reconexiones en 3-opt (hay varias)
+            segmento1 = nuevo_tour[:a]
+            segmento2 = nuevo_tour[a:b]
+            segmento3 = nuevo_tour[b:c]
+            segmento4 = nuevo_tour[c:]
+            nuevo_tour = segmento1 + list(reversed(segmento2)) + segmento3 + segmento4
+            
+            # Calcular FO
+            fo = calcular_fo(nuevo_tour, matriz)
+            
+            if fo < mejor_fo:
+                mejor_fo = fo
+                mejor_tour = nuevo_tour
+        except:
+            continue
+    
+    if mejor_tour:
+        resultado = {
+            'tour': mejor_tour,
+            'fo': mejor_fo,
+            'tipo': '3opt'
+        }
+        lista_compartida.append(resultado)
+
+def generar_perturbaciones_concurrentes(tours_semilla, matriz, n_perturbaciones_por_tipo=5):
+    """
+    Genera perturbaciones de forma concurrente usando múltiples procesos
+    """
+    # Instanciar el administrador de procesos
+    manager = mp.Manager()
+    # Creamos la memoria compartida
+    lista_compartida = manager.list()
+    
+    # Lista para almacenar todos los procesos
+    todos_procesos = []
+    
+    # Tipos de perturbación disponibles
+    funciones_perturbacion = [
+        aplicar_perturbacion_2opt,
+        aplicar_perturbacion_swap,
+        aplicar_perturbacion_insert,
+        aplicar_perturbacion_scramble,
+        aplicar_perturbacion_3opt
+    ]
+    
+    # Crear procesos para cada tipo de perturbación y cada tour semilla
+    for tour_base in tours_semilla:
+        for funcion_perturbacion in funciones_perturbacion:
+            proceso = mp.Process(
+                target=funcion_perturbacion,
+                args=(lista_compartida, tour_base, matriz, n_perturbaciones_por_tipo)
+            )
+            todos_procesos.append(proceso)
+    
+    # Iniciar medición de tiempo
+    tiempo_inicio = perf_counter()
+    
+    # Iniciar todos los procesos
+    for proceso in todos_procesos:
+        proceso.start()
+    
+    # Esperar a que todos los procesos terminen
+    for proceso in todos_procesos:
+        proceso.join()
+    
+    # Finalizar medición de tiempo
+    tiempo_fin = perf_counter()
+    tiempo_ejecucion = tiempo_fin - tiempo_inicio
+    
+    print(f"Tiempo total de generación concurrente: {tiempo_ejecucion:.4f}s")
+    print(f"Total de perturbaciones generadas: {len(lista_compartida)}")
+    
+    # Convertir a lista normal
+    return list(lista_compartida)
+
+# Función para generar descendencia de forma concurrente
+def generar_descendencia_concurrente(poblacion, matriz, n_descendientes, prob_mutacion=0.2):
+    """
+    Genera descendencia de forma concurrente mediante torneos, cruces y mutaciones
+    """
+    # Función que ejecutará cada proceso
+    def generar_individuo(lista_compartida):
+        # Selección de padres por torneo binario
+        padre1 = selección_torneo(poblacion)
+        padre2 = selección_torneo(poblacion)
+        
+        # Cruce OX (Order Crossover)
+        hijo = cruce_ox(padre1['tour'], padre2['tour'])
+        
+        # Mutación con probabilidad
+        if random.random() < prob_mutacion:
+            hijo = mutación_2opt(hijo)
+        
+        # Evaluar el hijo
+        fo_hijo = calcular_fo(hijo, matriz)
+        hijo_evaluado = {'tour': hijo, 'fo': fo_hijo}
+        
+        # Añadir a la lista compartida
+        lista_compartida.append(hijo_evaluado)
+    
+    # Instanciar el administrador de procesos
+    manager = mp.Manager()
+    # Creamos la memoria compartida
+    lista_compartida = manager.list()
+    
+    # Lista para almacenar todos los procesos
+    procesos = []
+    
+    # Crear procesos para generar descendencia
+    for _ in range(n_descendientes):
+        proceso = mp.Process(target=generar_individuo, args=(lista_compartida,))
+        procesos.append(proceso)
+    
+    # Iniciar medición de tiempo
+    tiempo_inicio = perf_counter()
+    
+    # Iniciar todos los procesos
+    for proceso in procesos:
+        proceso.start()
+    
+    # Esperar a que todos los procesos terminen
+    for proceso in procesos:
+        proceso.join()
+    
+    # Finalizar medición de tiempo
+    tiempo_fin = perf_counter()
+    tiempo_ejecucion = tiempo_fin - tiempo_inicio
+    
+    print(f"Tiempo de generación de {n_descendientes} descendientes: {tiempo_ejecucion:.4f}s")
+    
+    # Convertir a lista normal
+    return list(lista_compartida)
 
 if __name__ == "__main__":
     # Mostrar el menú principal
