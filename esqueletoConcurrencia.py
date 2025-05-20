@@ -70,34 +70,34 @@ def estrategia_paralelo():
 
 ########### VENCINDARIOS ###########
 
-def generar_vecindario_swap(lista_compartida, s_i):
+def generar_vecindario_swap(lista_compartida, s_i,distancias:list):
     vecinos = swap1(s_i)
-    vecindario_Ampliado = ampliar_vencindario(vecinos)
+    vecindario_Ampliado = ampliar_vencindario(vecinos,distancias)
     vecindario_Ampliado.sort(key=lambda v:v['fo'])
 
     lista_compartida.append(('swap', vecindario_Ampliado[0]))
 
-def generar_vecindario_insert_derecha(lista_compartida, s_i):
+def generar_vecindario_insert_derecha(lista_compartida, s_i,distancias:list):
     vecinos = insert_derecha(s_i)
-    vecindario_Ampliado = ampliar_vencindario(vecinos)
+    vecindario_Ampliado = ampliar_vencindario(vecinos,distancias)
     vecindario_Ampliado.sort(key=lambda v:v['fo'])
 
     lista_compartida.append(('insert_derecha', vecindario_Ampliado[0]))
 
-def generar_vecindario_insert_izquierda(lista_compartida, s_i):
+def generar_vecindario_insert_izquierda(lista_compartida, s_i,distancias):
     vecinos = insert_izquierda(s_i)
-    vecindario_Ampliado = ampliar_vencindario(vecinos)
+    vecindario_Ampliado = ampliar_vencindario(vecinos,distancias)
     vecindario_Ampliado.sort(key=lambda v:v['fo'])
     lista_compartida.append(('insert_izquierda', vecindario_Ampliado[0]))    
 
-def generar_vecindario_2opt(lista_compartida, s_i):
+def generar_vecindario_2opt(lista_compartida, s_i,distancias:list):
     vecinos = two_opt(s_i)
-    vecindario_Ampliado = ampliar_vencindario(vecinos)
+    vecindario_Ampliado = ampliar_vencindario(vecinos,distancias)
     vecindario_Ampliado.sort(key=lambda v:v['fo'])
     lista_compartida.append(('2opt', vecindario_Ampliado[0]))
 
 
-def vecinos_concurrentes(s_i:list):
+def vecinos_concurrentes(s_i:list,distancias:list):
 
     #? Instanciar el administrador de procesos
     manager = mp.Manager()
@@ -106,10 +106,10 @@ def vecinos_concurrentes(s_i:list):
 
     #? Colección de procesos
     procesos = [
-        mp.Process(target=generar_vecindario_swap,args=(lista_compartida,s_i)),
-        mp.Process(target=generar_vecindario_insert_derecha,args=(lista_compartida,s_i)),
-        mp.Process(target=generar_vecindario_insert_izquierda,args=(lista_compartida,s_i)),
-        mp.Process(target=generar_vecindario_2opt,args=(lista_compartida,s_i)),
+        mp.Process(target=generar_vecindario_swap,args=(lista_compartida,s_i,distancias)),
+        mp.Process(target=generar_vecindario_insert_derecha,args=(lista_compartida,s_i,distancias)),
+        mp.Process(target=generar_vecindario_insert_izquierda,args=(lista_compartida,s_i,distancias)),
+        mp.Process(target=generar_vecindario_2opt,args=(lista_compartida,s_i,distancias)),
     ]
 
     tiempo_inicio = perf_counter()
