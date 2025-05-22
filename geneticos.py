@@ -7,8 +7,7 @@ import os
 import sys
 import random
 import numpy as np
-import multiprocessing as mp
-from time import perf_counter
+import time
 import math
 from pprint import pprint
 
@@ -50,8 +49,11 @@ def generarPoblacion(caso:dict, matriz:list) -> list:
     población_inicial = []
     
     # 1. Generar individuos mediante heurísticas
-    print("\n1. GENERACIÓN DE INDIVIDUOS POR HEURÍSTICAS")
+    print("\n1. GENERACIÓN DE INDIVIDUOS")
     print("-"*40)
+    
+    print("Generando 5 individuos por las heuristicas trabajadas...")
+    inicio_total_heuristicas = time.time()
     
     # Heurística 1: Vecino más cercano
     inicio = time.time()
@@ -126,6 +128,9 @@ def generarPoblacion(caso:dict, matriz:list) -> list:
     except Exception as e:
         print(f"No se pudo ejecutar Christofides: {e}")
     
+    tiempo_total_heuristicas = time.time() - inicio_total_heuristicas
+    print(f"Tiempo total de generación de las heuristicas: {tiempo_total_heuristicas:.4f}s")
+    
     # Obtener tours semilla de las heurísticas
     tours_semilla = [ind['tour'] for ind in población_inicial]
     
@@ -151,7 +156,9 @@ def generarPoblacion(caso:dict, matriz:list) -> list:
                 nombres_heuristicas = nombres_heuristicas[:len(tours_semilla)]
             
             # Generar exactamente las perturbaciones requeridas
-            print(f"\nGenerando {perturbaciones_requeridas} perturbaciones swap...")
+            print(f"Generando {perturbaciones_requeridas} perturbaciones swap...")
+            
+            inicio_perturbaciones = time.time()
             perturbaciones = generar_perturbaciones_swap_exactas(tours_semilla, matriz, perturbaciones_requeridas, nombres_heuristicas)
             
             # Añadir perturbaciones a la población, evitando duplicados
@@ -169,8 +176,11 @@ def generarPoblacion(caso:dict, matriz:list) -> list:
             aleatorios_faltantes = tam_poblacion_deseado - len(población_inicial)
             
             # Generar individuos aleatorios
-            print(f"\nGenerando {aleatorios_faltantes} individuos aleatorios...")
+            print(f"Generando {aleatorios_faltantes} individuos aleatorios...")
+            
+            inicio_aleatorios = time.time()
             individuos_aleatorios = generar_individuos_aleatorios(caso, matriz, aleatorios_faltantes, población_inicial)
+            tiempo_aleatorios = time.time() - inicio_aleatorios
             
             # Añadir a la población
             for individuo in individuos_aleatorios:
@@ -180,6 +190,8 @@ def generarPoblacion(caso:dict, matriz:list) -> list:
                     'tipo': 'Aleatorio'
                 }
                 población_inicial.append(nuevo_individuo)
+            
+            print(f"Tiempo total de generación de los aleatorios: {tiempo_aleatorios:.4f}s")
     
     # Mostrar toda la información de la población generada
     print("\n=== POBLACIÓN INICIAL GENERADA ===")
@@ -406,15 +418,15 @@ def algoritmo_genetico_chu_beasley(caso, matriz, max_generaciones=100):
     gen_sin_mejora = 0
     max_gen_sin_mejora = 20  # Criterio de parada si no hay mejoras
     
-    # Tamaño de la generación concurrente (cuántos descendientes generar a la vez)
+    # Tamaño de la generación (cuántos descendientes generar a la vez)
     tamaño_generacion = max(10, tam_población // 2)
     
     inicio = time.time()
     
     for gen in range(1, max_generaciones + 1):
-        # Generar descendencia de forma concurrente
-        print(f"\nGeneración {gen}: Generando {tamaño_generacion} descendientes concurrentemente...")
-        descendientes = generar_descendencia_concurrente(población, matriz, tamaño_generacion, prob_mutación)
+        # Generar descendencia
+        print(f"\nGeneración {gen}")
+        descendientes = generar_descendencia(población, matriz, tamaño_generacion, prob_mutación)
         
         # Ordenar descendientes por calidad (menor FO es mejor)
         descendientes.sort(key=lambda ind: ind['fo'])
@@ -463,9 +475,9 @@ def algoritmo_genetico_chu_beasley(caso, matriz, max_generaciones=100):
     
     return resultado
 
-def generar_descendencia_concurrente(poblacion, matriz, n_descendientes, prob_mutacion=0.2):
+def generar_descendencia(poblacion, matriz, n_descendientes, prob_mutacion=0.2):
     """
-    Genera descendencia de forma concurrente mediante torneos, cruces y mutaciones
+    Genera descendencia mediante torneos, cruces y mutaciones sin usar concurrencia.
     
     Args:
         poblacion: Población actual
@@ -476,61 +488,146 @@ def generar_descendencia_concurrente(poblacion, matriz, n_descendientes, prob_mu
     Returns:
         Lista de descendientes generados
     """
-    # Función que ejecutará cada proceso
-    def generar_individuo(lista_compartida):
-        # Selección de padres por torneo binario
-        padre1 = seleccion_torneo(poblacion)
-        padre2 = seleccion_torneo(poblacion)
-        
-        # Cruce OX (Order Crossover)
-        hijo = cruce_ox(padre1['tour'], padre2['tour'])
-        
-        # Mutación con probabilidad
-        if random.random() < prob_mutacion:
-            hijo = mutacion_2opt(hijo)
-        
-        # Evaluar el hijo
-        fo_hijo = calcular_fo(hijo, matriz)
-        hijo_evaluado = {'tour': hijo, 'fo': fo_hijo}
-        
-        # Añadir a la lista compartida
-        lista_compartida.append(hijo_evaluado)
-    
-    # Instanciar el administrador de procesos
-    manager = mp.Manager()
-    # Creamos la memoria compartida
-    lista_compartida = manager.list()
-    
-    # Lista para almacenar todos los procesos
-    procesos = []
-    
-    # Crear procesos para generar descendencia
-    for _ in range(n_descendientes):
-        proceso = mp.Process(target=generar_individuo, args=(lista_compartida,))
-        procesos.append(proceso)
+    # Lista para almacenar los descendientes
+    descendientes = []
     
     # Iniciar medición de tiempo
-    tiempo_inicio = perf_counter()
+    tiempo_inicio = time.time()
     
-    # Iniciar todos los procesos
-    for proceso in procesos:
-        proceso.start()
-    
-    # Esperar a que todos los procesos terminen
-    for proceso in procesos:
-        proceso.join()
+    # Generar n_descendientes descendientes
+    for descendiente_idx in range(n_descendientes):
+        # Si es el primer descendiente, mostrar información detallada
+        if descendiente_idx == 0:
+            print("\n2. SELECCIÓN")
+            print("-"*40)
+            
+            # Selección del padre (torneo binario)
+            candidatos_padre = random.sample(poblacion, 2)
+            candidatos_padre.sort(key=lambda ind: ind['fo'])
+            padre = candidatos_padre[0]  # El mejor candidato (menor FO)
+            
+            # Mostrar información de los candidatos a padre
+            print("Torneo Padre")
+            print(f"Candidato 1: Individuo {poblacion.index(candidatos_padre[0])+1}, FO={candidatos_padre[0]['fo']}")
+            print(f"Candidato 2: Individuo {poblacion.index(candidatos_padre[1])+1}, FO={candidatos_padre[1]['fo']}")
+            print(f"Seleccionado como PADRE: Individuo {poblacion.index(padre)+1}, FO={padre['fo']}")
+            
+            # Selección de la madre (torneo binario)
+            candidatos_madre = random.sample(poblacion, 2)
+            candidatos_madre.sort(key=lambda ind: ind['fo'])
+            madre = candidatos_madre[0]  # El mejor candidato (menor FO)
+            
+            # Mostrar información de los candidatos a madre
+            print("\nTorneo Madre")
+            print(f"Candidato 1: Individuo {poblacion.index(candidatos_madre[0])+1}, FO={candidatos_madre[0]['fo']}")
+            print(f"Candidato 2: Individuo {poblacion.index(candidatos_madre[1])+1}, FO={candidatos_madre[1]['fo']}")
+            print(f"Seleccionado como MADRE: Individuo {poblacion.index(madre)+1}, FO={madre['fo']}")
+            
+            print("\n3. RECOMBINACIÓN")
+            print("-"*40)
+            
+            # Generar los 5 descendientes con diferentes operadores de cruce
+            # Stefan Jacobs (SJX)
+            hijo_sjx = cruce_sjx(padre['tour'], madre['tour'])
+            fo_sjx = calcular_fo(hijo_sjx, matriz)
+            print(f"SJX: FO={fo_sjx}")
+            
+            # Partially Matched Crossover (PMX)
+            hijo_pmx = cruce_pmx(padre['tour'], madre['tour'])
+            fo_pmx = calcular_fo(hijo_pmx, matriz)
+            print(f"PMX: FO={fo_pmx}")
+            
+            # Order Crossover (OX)
+            hijo_ox = cruce_ox(padre['tour'], madre['tour'])
+            fo_ox = calcular_fo(hijo_ox, matriz)
+            print(f"OX: FO={fo_ox}")
+            
+            # Order Based Crossover (OBX)
+            hijo_obx = cruce_obx(padre['tour'], madre['tour'])
+            fo_obx = calcular_fo(hijo_obx, matriz)
+            print(f"OBX: FO={fo_obx}")
+            
+            # Cycle Crossover (CX)
+            hijo_cx = cruce_cx(padre['tour'], madre['tour'])
+            fo_cx = calcular_fo(hijo_cx, matriz)
+            print(f"CX: FO={fo_cx}")
+            
+            # Ranking de descendientes por FO
+            descendientes_ranking = [
+                {'tipo': 'SJX', 'tour': hijo_sjx, 'fo': fo_sjx},
+                {'tipo': 'PMX', 'tour': hijo_pmx, 'fo': fo_pmx},
+                {'tipo': 'OX', 'tour': hijo_ox, 'fo': fo_ox},
+                {'tipo': 'OBX', 'tour': hijo_obx, 'fo': fo_obx},
+                {'tipo': 'CX', 'tour': hijo_cx, 'fo': fo_cx}
+            ]
+            
+            # Ordenar por FO (menor es mejor)
+            descendientes_ranking.sort(key=lambda d: d['fo'])
+            
+            # Seleccionar el mejor descendiente
+            mejor_descendiente = descendientes_ranking[0]
+            print(f"\nMejor operador de recombinación: {mejor_descendiente['tipo']} con FO={mejor_descendiente['fo']}")
+            
+            # Aplicar mutación (opcional, según probabilidad)
+            if random.random() < prob_mutacion:
+                mejor_descendiente['tour'] = mutacion_2opt(mejor_descendiente['tour'])
+                mejor_descendiente['fo'] = calcular_fo(mejor_descendiente['tour'], matriz)
+                print(f"Después de mutación: FO={mejor_descendiente['fo']}")
+            
+            # Añadir a la lista de descendientes
+            descendientes.append(mejor_descendiente)
+        else:
+            # Para el resto de descendientes, procedimiento sin detalles
+            # Selección de padres por torneo binario
+            padre = seleccion_torneo(poblacion)
+            madre = seleccion_torneo(poblacion)
+            
+            # Generar los 5 descendientes con diferentes operadores de cruce
+            hijos = [
+                {'tipo': 'SJX', 'tour': cruce_sjx(padre['tour'], madre['tour'])},
+                {'tipo': 'PMX', 'tour': cruce_pmx(padre['tour'], madre['tour'])},
+                {'tipo': 'OX', 'tour': cruce_ox(padre['tour'], madre['tour'])},
+                {'tipo': 'OBX', 'tour': cruce_obx(padre['tour'], madre['tour'])},
+                {'tipo': 'CX', 'tour': cruce_cx(padre['tour'], madre['tour'])}
+            ]
+            
+            # Calcular FO para cada hijo
+            for hijo in hijos:
+                hijo['fo'] = calcular_fo(hijo['tour'], matriz)
+            
+            # Ordenar por FO (menor es mejor)
+            hijos.sort(key=lambda h: h['fo'])
+            
+            # Seleccionar el mejor descendiente
+            mejor_descendiente = hijos[0]
+            
+            # Aplicar mutación (opcional, según probabilidad)
+            if random.random() < prob_mutacion:
+                mejor_descendiente['tour'] = mutacion_2opt(mejor_descendiente['tour'])
+                mejor_descendiente['fo'] = calcular_fo(mejor_descendiente['tour'], matriz)
+            
+            # Añadir a la lista de descendientes
+            descendientes.append(mejor_descendiente)
     
     # Finalizar medición de tiempo
-    tiempo_fin = perf_counter()
+    tiempo_fin = time.time()
     tiempo_ejecucion = tiempo_fin - tiempo_inicio
     
     print(f"Tiempo de generación de {n_descendientes} descendientes: {tiempo_ejecucion:.4f}s")
     
-    # Convertir a lista normal
-    return list(lista_compartida)
+    return descendientes
 
 def seleccion_torneo(poblacion, tam_torneo=2):
-    """Selección por torneo binario"""
+    """
+    Selección por torneo binario: selecciona al mejor de tam_torneo individuos aleatorios.
+    
+    Args:
+        poblacion: Lista de individuos que forman la población
+        tam_torneo: Tamaño del torneo (número de competidores)
+        
+    Returns:
+        El mejor individuo seleccionado
+    """
     competidores = random.sample(poblacion, tam_torneo)
     return min(competidores, key=lambda ind: ind['fo'])
 
@@ -558,6 +655,143 @@ def cruce_ox(padre1, padre2):
             j = (j + 1) % n
             if j == punto1:
                 break
+    
+    return hijo
+
+def cruce_sjx(padre1, padre2):
+    """
+    Cruce SJX (Stefan Jacobs) para permutaciones:
+    - Se generan dos números enteros p y q
+    - Se toman q genes a partir de la posición p de la solución padre
+    - El resto de los genes son tomados de la madre
+    """
+    n = len(padre1)
+    # Generar posición p y cantidad de genes q
+    p = random.randint(0, n-1)
+    # Aseguramos que q no exceda la longitud restante
+    q = random.randint(1, min(n-p, n//2))
+    
+    # Inicializar hijo con -1 (valor no válido)
+    hijo = [-1] * n
+    
+    # Copiar q genes desde la posición p del padre
+    for i in range(p, p+q):
+        hijo[i] = padre1[i]
+    
+    # Completar con genes de la madre, evitando repetidos
+    j = 0
+    for i in range(n):
+        if j == p:
+            j = p + q  # Saltar la sección ya copiada del padre
+        if j < n and hijo[j] == -1:
+            elemento = padre2[i]
+            if elemento not in hijo:
+                hijo[j] = elemento
+                j += 1
+    
+    return hijo
+
+def cruce_pmx(padre1, padre2):
+    """
+    Cruce PMX (Partially Matched Crossover) para permutaciones:
+    - Se generan dos puntos de corte sobre el padre
+    - Se extraen los genes dentro de ese rango
+    - Se copian en la descendencia respetando la posición
+    - Se llenan los demás genes con la información de la madre
+    - Si hay repeticiones, se reemplazan usando mapeo
+    """
+    n = len(padre1)
+    # Generar puntos de corte
+    punto1 = random.randint(0, n-2)
+    punto2 = random.randint(punto1+1, n-1)
+    
+    # Inicializar hijo como una copia de padre2
+    hijo = padre2.copy()
+    
+    # Mapeo de valores para la corrección
+    mapeo = {}
+    
+    # Primera fase: copiar segmento de padre1 y establecer mapeo
+    for i in range(punto1, punto2+1):
+        gen_padre1 = padre1[i]
+        gen_padre2 = padre2[i]
+        
+        hijo[i] = gen_padre1  # Copiamos el gen del padre1
+        
+        if gen_padre1 != gen_padre2:
+            mapeo[gen_padre2] = gen_padre1
+    
+    # Segunda fase: corregir duplicados fuera del segmento
+    for i in range(n):
+        if i < punto1 or i > punto2:
+            gen = hijo[i]
+            while gen in mapeo:  # Si hay conflicto, aplicar mapeo
+                gen = mapeo[gen]
+            hijo[i] = gen
+    
+    return hijo
+
+def cruce_obx(padre1, padre2):
+    """
+    Cruce OBX (Order Based Crossover) para permutaciones:
+    - Se genera un punto de corte sobre el padre
+    - Se extraen los genes a la izquierda del punto de corte del padre
+    - Se usan todos los genes de la madre que no fueron empleados
+    """
+    n = len(padre1)
+    # Generar punto de corte
+    punto = random.randint(1, n-1)  # Al menos un elemento del padre, al menos uno de la madre
+    
+    # Inicializar hijo
+    hijo = [-1] * n
+    
+    # Copiar genes a la izquierda del punto de corte desde el padre
+    for i in range(punto):
+        hijo[i] = padre1[i]
+    
+    # Completar con genes de la madre que no estén ya en el hijo
+    j = punto
+    for i in range(n):
+        elemento = padre2[i]
+        if elemento not in hijo:
+            hijo[j] = elemento
+            j += 1
+            if j >= n:
+                break
+    
+    return hijo
+
+def cruce_cx(padre1, padre2):
+    """
+    Cruce CX (Cycle Crossover) para permutaciones:
+    - Identifica ciclos entre el padre y la madre
+    - Alterna ciclos entre padre y madre para formar el hijo
+    """
+    n = len(padre1)
+    hijo = [-1] * n
+    visitados = [False] * n
+    
+    # Comenzar con el primer elemento
+    ciclo_par = True  # Alternamos ciclos pares e impares
+    
+    for i in range(n):
+        if not visitados[i]:
+            # Nuevo ciclo
+            j = i
+            while not visitados[j]:
+                visitados[j] = True
+                # Si es ciclo par, tomamos del padre, si es impar, de la madre
+                if ciclo_par:
+                    hijo[j] = padre1[j]
+                else:
+                    hijo[j] = padre2[j]
+                
+                # Buscar el índice del valor del padre2 en padre1
+                valor = padre2[j]
+                j = padre1.index(valor)
+            
+            # Cambiamos de ciclo
+            ciclo_par = not ciclo_par
     
     return hijo
 
@@ -595,6 +829,13 @@ def reemplazo_chu_beasley(poblacion, hijo):
     Reemplazo siguiendo el esquema de Chu-Beasley:
     1. El hijo solo reemplaza a un individuo si es mejor
     2. Se reemplaza al peor individuo que sea diferente al hijo
+    
+    Args:
+        poblacion: Lista de individuos que forman la población
+        hijo: Nuevo individuo a insertar en la población
+        
+    Returns:
+        bool: True si se realizó un reemplazo, False en caso contrario
     """
     # Ordenar población por FO (menor es mejor)
     poblacion.sort(key=lambda ind: ind['fo'])
@@ -618,27 +859,92 @@ def reemplazo_chu_beasley(poblacion, hijo):
             poblacion[indice_reemplazo] = hijo
             # Reordenar la población
             poblacion.sort(key=lambda ind: ind['fo'])
+            return True
+    
+    return False
 
-def aplicar_perturbacion_swap_exactas(lista_compartida, tour_base, matriz, n_perturbaciones, origen_heuristica=None, población_existente=None):
+def generar_perturbaciones_swap_exactas(tours_semilla, matriz, total_requerido, nombres_heuristicas=None):
     """
-    Aplica exactamente n_perturbaciones mediante intercambio de ciudades (swap),
-    asegurándose de que todas sean diferentes entre sí y diferentes de la población existente.
+    Genera exactamente el número de perturbaciones requeridas usando el operador swap,
+    distribuidas uniformemente entre los tours semilla, sin usar concurrencia.
     
     Args:
-        lista_compartida: Lista compartida para almacenar resultados
+        tours_semilla: Lista de tours base para generar perturbaciones
+        matriz: Matriz de distancias
+        total_requerido: Número total de perturbaciones a generar
+        nombres_heuristicas: Lista con los nombres de las heurísticas correspondientes a cada tour
+        
+    Returns:
+        Lista de perturbaciones generadas
+    """
+    # Si no se proporcionan nombres, usar valores por defecto
+    if nombres_heuristicas is None:
+        nombres_heuristicas = [f"Heurística {i+1}" for i in range(len(tours_semilla))]
+    
+    # Lista para almacenar todas las perturbaciones
+    perturbaciones = []
+    
+    # Calcular cuántas perturbaciones por tour semilla
+    # Distribuir uniformemente
+    n_tours = len(tours_semilla)
+    perturbaciones_por_tour = [total_requerido // n_tours] * n_tours
+    
+    # Distribuir las perturbaciones restantes (si hay)
+    extras = total_requerido % n_tours
+    for i in range(extras):
+        perturbaciones_por_tour[i] += 1
+    
+    # Iniciar medición de tiempo
+    tiempo_inicio = time.time()
+    
+    # Generar perturbaciones para cada tour semilla
+    for i, tour_base in enumerate(tours_semilla):
+        perturbaciones_tour = generar_perturbaciones_para_tour(
+            tour_base, 
+            matriz, 
+            perturbaciones_por_tour[i], 
+            nombres_heuristicas[i],
+            perturbaciones  # Pasar las perturbaciones ya generadas para evitar duplicados
+        )
+        perturbaciones.extend(perturbaciones_tour)
+    
+    # Finalizar medición de tiempo
+    tiempo_fin = time.time()
+    tiempo_ejecucion = tiempo_fin - tiempo_inicio
+    
+    print(f"Tiempo total de generación de perturbaciones swap: {tiempo_ejecucion:.4f}s")
+    
+    return perturbaciones
+
+def generar_perturbaciones_para_tour(tour_base, matriz, n_perturbaciones, origen_heuristica, perturbaciones_existentes=None):
+    """
+    Aplica exactamente n_perturbaciones mediante intercambio de ciudades (swap) para un tour específico,
+    asegurándose de que todas sean diferentes entre sí y diferentes de las perturbaciones existentes.
+    
+    Args:
         tour_base: Tour base para realizar perturbaciones
         matriz: Matriz de distancias
         n_perturbaciones: Número exacto de perturbaciones a realizar
         origen_heuristica: Nombre de la heurística de origen del tour base
-        población_existente: Lista de tours existentes para evitar duplicados
+        perturbaciones_existentes: Lista de perturbaciones ya generadas para evitar duplicados
+        
+    Returns:
+        Lista de perturbaciones generadas para este tour
     """
-    if población_existente is None:
-        población_existente = []
+    if perturbaciones_existentes is None:
+        perturbaciones_existentes = []
     
     n = len(tour_base)
     perturbaciones_generadas = []
     intentos = 0
     max_intentos = n_perturbaciones * 10  # Limitar intentos para evitar bucles infinitos
+    
+    tours_existentes = []
+    for p in perturbaciones_existentes:
+        if isinstance(p, dict) and 'tour' in p:
+            tours_existentes.append(p['tour'])
+        else:
+            tours_existentes.append(p)
     
     while len(perturbaciones_generadas) < n_perturbaciones and intentos < max_intentos:
         # Perturbación mediante intercambio de dos ciudades
@@ -654,13 +960,8 @@ def aplicar_perturbacion_swap_exactas(lista_compartida, tour_base, matriz, n_per
         
         # Verificar si es único
         es_unico = True
-        for tour_existente in perturbaciones_generadas + población_existente:
-            if isinstance(tour_existente, dict):
-                tour_comp = tour_existente.get('tour', [])
-            else:
-                tour_comp = tour_existente
-                
-            if np.array_equal(np.array(nuevo_tour), np.array(tour_comp)):
+        for tour_existente in tours_existentes + [p['tour'] for p in perturbaciones_generadas]:
+            if np.array_equal(np.array(nuevo_tour), np.array(tour_existente)):
                 es_unico = False
                 break
         
@@ -672,80 +973,13 @@ def aplicar_perturbacion_swap_exactas(lista_compartida, tour_base, matriz, n_per
                 'origen': origen_heuristica
             }
             perturbaciones_generadas.append(resultado)
-            lista_compartida.append(resultado)
         
         intentos += 1
     
     if len(perturbaciones_generadas) < n_perturbaciones:
         print(f"Advertencia: No se pudieron generar {n_perturbaciones} perturbaciones únicas para {origen_heuristica}. Se generaron {len(perturbaciones_generadas)}")
-
-def generar_perturbaciones_swap_exactas(tours_semilla, matriz, total_requerido, nombres_heuristicas=None):
-    """
-    Genera exactamente el número de perturbaciones requeridas usando el operador swap,
-    distribuidas uniformemente entre los tours semilla.
     
-    Args:
-        tours_semilla: Lista de tours base para generar perturbaciones
-        matriz: Matriz de distancias
-        total_requerido: Número total de perturbaciones a generar
-        nombres_heuristicas: Lista con los nombres de las heurísticas correspondientes a cada tour
-        
-    Returns:
-        Lista de perturbaciones generadas
-    """
-    # Si no se proporcionan nombres, usar valores por defecto
-    if nombres_heuristicas is None:
-        nombres_heuristicas = [f"Heurística {i+1}" for i in range(len(tours_semilla))]
-    
-    # Instanciar el administrador de procesos
-    manager = mp.Manager()
-    # Creamos la memoria compartida
-    lista_compartida = manager.list()
-    
-    # Calcular cuántas perturbaciones por tour semilla
-    # Distribuir uniformemente
-    n_tours = len(tours_semilla)
-    perturbaciones_por_tour = [total_requerido // n_tours] * n_tours
-    
-    # Distribuir las perturbaciones restantes (si hay)
-    extras = total_requerido % n_tours
-    for i in range(extras):
-        perturbaciones_por_tour[i] += 1
-    
-    # Lista para almacenar todos los procesos
-    todos_procesos = []
-    
-    # Crear procesos para cada tour semilla
-    for i, tour_base in enumerate(tours_semilla):
-        proceso = mp.Process(
-            target=aplicar_perturbacion_swap_exactas,
-            args=(lista_compartida, tour_base, matriz, perturbaciones_por_tour[i], nombres_heuristicas[i]),
-            kwargs={'población_existente': []}
-        )
-        todos_procesos.append(proceso)
-    
-    # Iniciar medición de tiempo
-    tiempo_inicio = perf_counter()
-    
-    # Iniciar todos los procesos
-    for proceso in todos_procesos:
-        proceso.start()
-    
-    # Esperar a que todos los procesos terminen
-    for proceso in todos_procesos:
-        proceso.join()
-    
-    # Finalizar medición de tiempo
-    tiempo_fin = perf_counter()
-    tiempo_ejecucion = tiempo_fin - tiempo_inicio
-    
-    print(f"Tiempo total de generación de perturbaciones swap: {tiempo_ejecucion:.4f}s")
-    print(f"Total de perturbaciones swap generadas: {len(lista_compartida)}")
-    
-    # Convertir a lista normal
-    perturbaciones = list(lista_compartida)
-    
-    return perturbaciones
+    return perturbaciones_generadas
 
 if __name__ == "__main__":
     print("Este módulo contiene implementaciones de algoritmos genéticos para el TSP.")
