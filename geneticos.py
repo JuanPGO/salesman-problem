@@ -101,6 +101,30 @@ def generarPoblacion(caso:dict, matriz:list) -> list:
     inicio = time.time()
     resultado_savings = heuristicaSavings(caso, matriz)
     tiempo_savings = time.time() - inicio
+
+    # Corregir el tour de Savings si tiene longitud incorrecta
+    if len(resultado_savings['tour']) != caso['dimension']:
+        print(f"Corrigiendo tour de Savings: longitud original {len(resultado_savings['tour'])}, debería ser {caso['dimension']}")
+        # Si el tour es más largo que la dimensión, truncarlo
+        if len(resultado_savings['tour']) > caso['dimension']:
+            # Encontrar y eliminar elementos duplicados
+            tour_savings = []
+            visitados = set()
+            for ciudad in resultado_savings['tour']:
+                if ciudad not in visitados:
+                    tour_savings.append(ciudad)
+                    visitados.add(ciudad)
+                    if len(tour_savings) == caso['dimension']:
+                        break
+            resultado_savings['tour'] = tour_savings
+        # Si el tour es más corto que la dimensión, completarlo
+        elif len(resultado_savings['tour']) < caso['dimension']:
+            # Encontrar nodos faltantes
+            nodos_existentes = set(resultado_savings['tour'])
+            nodos_faltantes = [i for i in range(1, caso['dimension'] + 1) if i not in nodos_existentes]
+            # Añadir nodos faltantes al final del tour
+            resultado_savings['tour'].extend(nodos_faltantes)
+
     distancia_savings = distanciaTour(resultado_savings, matriz)
     
     individuo4 = {
@@ -116,6 +140,30 @@ def generarPoblacion(caso:dict, matriz:list) -> list:
         inicio = time.time()
         resultado_christofides = heuristicaChristofides(caso, matriz)
         tiempo_christofides = time.time() - inicio
+        
+        # Corregir el tour de Christofides si tiene longitud incorrecta
+        if len(resultado_christofides['tour']) != caso['dimension']:
+            print(f"Corrigiendo tour de Christofides: longitud original {len(resultado_christofides['tour'])}, debería ser {caso['dimension']}")
+            # Si el tour es más largo que la dimensión, truncarlo
+            if len(resultado_christofides['tour']) > caso['dimension']:
+                # Encontrar y eliminar elementos duplicados
+                tour_christofides = []
+                visitados = set()
+                for ciudad in resultado_christofides['tour']:
+                    if ciudad not in visitados:
+                        tour_christofides.append(ciudad)
+                        visitados.add(ciudad)
+                        if len(tour_christofides) == caso['dimension']:
+                            break
+                resultado_christofides['tour'] = tour_christofides
+            # Si el tour es más corto que la dimensión, completarlo
+            elif len(resultado_christofides['tour']) < caso['dimension']:
+                # Encontrar nodos faltantes
+                nodos_existentes = set(resultado_christofides['tour'])
+                nodos_faltantes = [i for i in range(1, caso['dimension'] + 1) if i not in nodos_existentes]
+                # Añadir nodos faltantes al final del tour
+                resultado_christofides['tour'].extend(nodos_faltantes)
+        
         distancia_christofides = distanciaTour(resultado_christofides, matriz)
         
         individuo5 = {
@@ -306,7 +354,7 @@ def algoritmo_genetico_chu_beasley(caso, matriz, max_generaciones=100):
         # Intentar incorporar los mejores descendientes en la población
         for hijo in descendientes:
             # Reemplazo en la población siguiendo el esquema de Chu-Beasley
-            reemplazado = reemplazo_chu_beasley(población, hijo)
+            reemplazado = reemplazo_chu_beasley(población, hijo, matriz)
             
             # Si se realizó un reemplazo y mejoró el mejor global, registrarlo
             if reemplazado and población[0]['fo'] < mejor_individuo['fo']:
@@ -439,9 +487,27 @@ def generar_descendencia(poblacion, matriz, n_descendientes, prob_mutacion=0.2):
             
             # Aplicar mutación (opcional, según probabilidad)
             if random.random() < prob_mutacion:
-                mejor_descendiente['tour'] = mutacion_2opt(mejor_descendiente['tour'])
-                mejor_descendiente['fo'] = calcular_fo(mejor_descendiente['tour'], matriz)
-                print(f"Después de mutación: FO={mejor_descendiente['fo']}")
+                print("\n4. MUTACIÓN")
+                print("-"*40)
+                
+                # Aplicar ambos operadores de mutación
+                tour_shift = mutacion_shift(mejor_descendiente['tour'])
+                fo_shift = calcular_fo(tour_shift, matriz)
+                print(f"Shift(1,0): FO={fo_shift}")
+                
+                tour_2opt = mutacion_2opt(mejor_descendiente['tour'])
+                fo_2opt = calcular_fo(tour_2opt, matriz)
+                print(f"2-opt: FO={fo_2opt}")
+                
+                # Elegir el mejor operador de mutación
+                if fo_shift <= fo_2opt:
+                    mejor_descendiente['tour'] = tour_shift
+                    mejor_descendiente['fo'] = fo_shift
+                    print(f"Mejor operador de mutación: Shift(1,0) con FO={fo_shift}")
+                else:
+                    mejor_descendiente['tour'] = tour_2opt
+                    mejor_descendiente['fo'] = fo_2opt
+                    print(f"Mejor operador de mutación: 2-opt con FO={fo_2opt}")
             
             # Añadir a la lista de descendientes
             descendientes.append(mejor_descendiente)
@@ -472,8 +538,20 @@ def generar_descendencia(poblacion, matriz, n_descendientes, prob_mutacion=0.2):
             
             # Aplicar mutación (opcional, según probabilidad)
             if random.random() < prob_mutacion:
-                mejor_descendiente['tour'] = mutacion_2opt(mejor_descendiente['tour'])
-                mejor_descendiente['fo'] = calcular_fo(mejor_descendiente['tour'], matriz)
+                # Aplicar ambos operadores de mutación
+                tour_shift = mutacion_shift(mejor_descendiente['tour'])
+                fo_shift = calcular_fo(tour_shift, matriz)
+                
+                tour_2opt = mutacion_2opt(mejor_descendiente['tour'])
+                fo_2opt = calcular_fo(tour_2opt, matriz)
+                
+                # Elegir el mejor operador de mutación
+                if fo_shift <= fo_2opt:
+                    mejor_descendiente['tour'] = tour_shift
+                    mejor_descendiente['fo'] = fo_shift
+                else:
+                    mejor_descendiente['tour'] = tour_2opt
+                    mejor_descendiente['fo'] = fo_2opt
             
             # Añadir a la lista de descendientes
             descendientes.append(mejor_descendiente)
@@ -501,7 +579,22 @@ def seleccion_torneo(poblacion, tam_torneo=2):
     return min(competidores, key=lambda ind: ind['fo'])
 
 def cruce_ox(padre1, padre2):
-    """Cruce OX (Order Crossover) para permutaciones"""
+    """
+    Cruce OX (Order Crossover) para permutaciones
+    
+    Args:
+        padre1: Lista con el tour del primer padre
+        padre2: Lista con el tour del segundo padre
+        
+    Returns:
+        Lista con el tour generado por el cruce OX
+    """
+    # Verificar que los padres tengan la misma longitud
+    if len(padre1) != len(padre2):
+        print(f"Error en OX: Los padres tienen longitudes diferentes: {len(padre1)} y {len(padre2)}")
+        # Devolver copia del padre1 como medida de emergencia
+        return padre1.copy()
+    
     n = len(padre1)
     # Puntos de corte
     punto1 = random.randint(0, n-2)
@@ -516,14 +609,23 @@ def cruce_ox(padre1, padre2):
     
     # Completar el hijo con los elementos del padre2 en orden
     j = (punto2 + 1) % n
-    for i in range(n):
-        # Iterar sobre los elementos del padre2
-        elemento = padre2[(punto2 + 1 + i) % n]
-        if elemento not in hijo:
-            hijo[j] = elemento
-            j = (j + 1) % n
-            if j == punto1:
-                break
+    elementos_usados = set(hijo[punto1:punto2+1])
+    elementos_restantes = [e for e in padre2 if e not in elementos_usados]
+    
+    if not elementos_restantes:
+        print("Advertencia: OX no pudo generar un tour válido. Usando padre1 como respaldo.")
+        return padre1.copy()
+    
+    for elemento in elementos_restantes:
+        hijo[j] = elemento
+        j = (j + 1) % n
+        if j == punto1:
+            break
+    
+    # Verificar validez del tour (debe contener todos los nodos una sola vez)
+    if -1 in hijo or len(set(hijo)) != n:
+        print("Advertencia: OX generó un tour inválido. Usando padre1 como respaldo.")
+        return padre1.copy()
     
     return hijo
 
@@ -533,7 +635,20 @@ def cruce_sjx(padre1, padre2):
     - Se generan dos números enteros p y q
     - Se toman q genes a partir de la posición p de la solución padre
     - El resto de los genes son tomados de la madre
+    
+    Args:
+        padre1: Lista con el tour del primer padre
+        padre2: Lista con el tour del segundo padre
+        
+    Returns:
+        Lista con el tour generado por el cruce SJX
     """
+    # Verificar que los padres tengan la misma longitud
+    if len(padre1) != len(padre2):
+        print(f"Error en SJX: Los padres tienen longitudes diferentes: {len(padre1)} y {len(padre2)}")
+        # Devolver copia del padre1 como medida de emergencia
+        return padre1.copy()
+    
     n = len(padre1)
     # Generar posición p y cantidad de genes q
     p = random.randint(0, n-1)
@@ -544,7 +659,7 @@ def cruce_sjx(padre1, padre2):
     hijo = [-1] * n
     
     # Copiar q genes desde la posición p del padre
-    for i in range(p, p+q):
+    for i in range(p, min(p+q, n)):
         hijo[i] = padre1[i]
     
     # Crear lista de elementos que faltan por incluir (los que no están en el hijo)
@@ -561,6 +676,11 @@ def cruce_sjx(padre1, padre2):
                 hijo[j] = elementos_faltantes[idx_faltante]
                 idx_faltante += 1
     
+    # Verificar validez del tour (debe contener todos los nodos una sola vez)
+    if -1 in hijo or len(set(hijo)) != n:
+        print("Advertencia: SJX generó un tour inválido. Usando padre1 como respaldo.")
+        return padre1.copy()
+    
     return hijo
 
 def cruce_pmx(padre1, padre2):
@@ -572,6 +692,12 @@ def cruce_pmx(padre1, padre2):
     - Se llenan los demás genes con la información de la madre
     - Si hay repeticiones, se reemplazan usando mapeo
     """
+    # Verificar que los padres tengan la misma longitud
+    if len(padre1) != len(padre2):
+        print(f"Error: Los padres tienen longitudes diferentes: {len(padre1)} y {len(padre2)}")
+        # Devolver copia del padre1 como medida de emergencia
+        return padre1.copy()
+    
     n = len(padre1)
     # Generar puntos de corte
     punto1 = random.randint(0, n-2)
@@ -595,11 +721,23 @@ def cruce_pmx(padre1, padre2):
     
     # Segunda fase: corregir duplicados fuera del segmento
     for i in range(n):
+        # Solo procesar índices fuera del segmento
         if i < punto1 or i > punto2:
-            gen = hijo[i]
-            while gen in mapeo:  # Si hay conflicto, aplicar mapeo
-                gen = mapeo[gen]
-            hijo[i] = gen
+            # Verificar que estamos dentro del rango válido
+            if i < len(hijo):
+                gen = hijo[i]
+                # Aplicar el mapeo para resolver conflictos
+                # Usar un contador para evitar ciclos infinitos
+                contador = 0
+                while gen in mapeo and contador < n:
+                    gen = mapeo[gen]
+                    contador += 1
+                hijo[i] = gen
+    
+    # Verificar validez del tour (debe contener todos los nodos una sola vez)
+    if len(set(hijo)) != n:
+        print("Advertencia: PMX generó un tour inválido. Usando padre1 como respaldo.")
+        return padre1.copy()
     
     return hijo
 
@@ -609,7 +747,20 @@ def cruce_obx(padre1, padre2):
     - Se genera un punto de corte sobre el padre
     - Se extraen los genes a la izquierda del punto de corte del padre
     - Se usan todos los genes de la madre que no fueron empleados
+    
+    Args:
+        padre1: Lista con el tour del primer padre
+        padre2: Lista con el tour del segundo padre
+        
+    Returns:
+        Lista con el tour generado por el cruce OBX
     """
+    # Verificar que los padres tengan la misma longitud
+    if len(padre1) != len(padre2):
+        print(f"Error en OBX: Los padres tienen longitudes diferentes: {len(padre1)} y {len(padre2)}")
+        # Devolver copia del padre1 como medida de emergencia
+        return padre1.copy()
+    
     n = len(padre1)
     # Generar punto de corte
     punto = random.randint(1, n-1)  # Al menos un elemento del padre, al menos uno de la madre
@@ -623,13 +774,18 @@ def cruce_obx(padre1, padre2):
     
     # Completar con genes de la madre que no estén ya en el hijo
     j = punto
-    for i in range(n):
-        elemento = padre2[i]
-        if elemento not in hijo:
+    elementos_usados = set(hijo[:punto])
+    elementos_faltantes = [e for e in padre2 if e not in elementos_usados]
+    
+    for elemento in elementos_faltantes:
+        if j < n:
             hijo[j] = elemento
             j += 1
-            if j >= n:
-                break
+    
+    # Verificar validez del tour (debe contener todos los nodos una sola vez)
+    if -1 in hijo or len(set(hijo)) != n:
+        print("Advertencia: OBX generó un tour inválido. Usando padre1 como respaldo.")
+        return padre1.copy()
     
     return hijo
 
@@ -638,44 +794,124 @@ def cruce_cx(padre1, padre2):
     Cruce CX (Cycle Crossover) para permutaciones:
     - Identifica ciclos entre el padre y la madre
     - Alterna ciclos entre padre y madre para formar el hijo
+    
+    Args:
+        padre1: Lista con el tour del primer padre
+        padre2: Lista con el tour del segundo padre
+        
+    Returns:
+        Lista con el tour generado por el cruce CX
     """
+    # Verificar que los padres tengan la misma longitud
+    if len(padre1) != len(padre2):
+        print(f"Error en CX: Los padres tienen longitudes diferentes: {len(padre1)} y {len(padre2)}")
+        # Devolver copia del padre1 como medida de emergencia
+        return padre1.copy()
+    
     n = len(padre1)
     hijo = [-1] * n
     visitados = [False] * n
     
-    # Comenzar con el primer elemento
-    ciclo_par = True  # Alternamos ciclos pares e impares
-    
-    for i in range(n):
-        if not visitados[i]:
-            # Nuevo ciclo
-            j = i
-            while not visitados[j]:
-                visitados[j] = True
-                # Si es ciclo par, tomamos del padre, si es impar, de la madre
-                if ciclo_par:
-                    hijo[j] = padre1[j]
-                else:
-                    hijo[j] = padre2[j]
+    try:
+        # Comenzar con el primer elemento
+        ciclo_par = True  # Alternamos ciclos pares e impares
+        
+        for i in range(n):
+            if not visitados[i]:
+                # Nuevo ciclo
+                j = i
+                while not visitados[j] and j < n:
+                    visitados[j] = True
+                    # Si es ciclo par, tomamos del padre, si es impar, de la madre
+                    if ciclo_par:
+                        hijo[j] = padre1[j]
+                    else:
+                        hijo[j] = padre2[j]
+                    
+                    # Buscar el índice del valor del padre2 en padre1
+                    try:
+                        valor = padre2[j]
+                        if valor in padre1:
+                            j = padre1.index(valor)
+                        else:
+                            # Si el valor no está en padre1, salir del ciclo
+                            break
+                    except (ValueError, IndexError):
+                        # Si hay un error al buscar el índice, salir del ciclo
+                        break
                 
-                # Buscar el índice del valor del padre2 en padre1
-                valor = padre2[j]
-                j = padre1.index(valor)
-            
-            # Cambiamos de ciclo
-            ciclo_par = not ciclo_par
+                # Cambiamos de ciclo
+                ciclo_par = not ciclo_par
+    except Exception as e:
+        print(f"Error en CX: {e}")
+        return padre1.copy()
+    
+    # Si quedan posiciones sin asignar, llenarlas con valores del padre1
+    for i in range(n):
+        if hijo[i] == -1:
+            # Buscar un valor del padre1 que no esté ya en el hijo
+            for valor in padre1:
+                if valor not in hijo:
+                    hijo[i] = valor
+                    break
+    
+    # Verificar validez del tour (debe contener todos los nodos una sola vez)
+    if -1 in hijo or len(set(hijo)) != n:
+        print("Advertencia: CX generó un tour inválido. Usando padre1 como respaldo.")
+        return padre1.copy()
     
     return hijo
 
-def mutacion_2opt(tour):
-    """Mutación usando el operador 2-opt"""
-    n = len(tour)
-    i = random.randint(1, n-2)
-    j = random.randint(i+1, n-1)
+def mutacion_shift(tour):
+    """
+    Mutación Shift(1,0) - Reubicación de servicios entre itinerarios.
+    Mueve un servicio (nodo) a una nueva posición en el tour.
     
-    # Invertir el segmento entre i y j
+    Args:
+        tour: Tour a mutar
+        
+    Returns:
+        Nuevo tour después de la mutación
+    """
+    n = len(tour)
+    # Seleccionar posición origen y destino aleatorias
+    origen = random.randint(0, n-1)
+    destino = random.randint(0, n-1)
+    
+    # Si origen y destino son iguales, no hay cambio
+    if origen == destino:
+        return tour.copy()
+    
     nuevo_tour = tour.copy()
-    nuevo_tour[i:j+1] = reversed(tour[i:j+1])
+    valor = nuevo_tour.pop(origen)
+    
+    # Insertar el valor en la posición destino
+    if origen < destino:
+        nuevo_tour.insert(destino-1, valor)
+    else:
+        nuevo_tour.insert(destino, valor)
+    
+    return nuevo_tour
+
+def mutacion_2opt(tour):
+    """
+    Mutación usando el operador 2-opt
+    Intercambia dos conexiones en una porción del orden de atención.
+    
+    Args:
+        tour: Tour a mutar
+        
+    Returns:
+        Nuevo tour después de la mutación
+    """
+    n = len(tour)
+    # Seleccionar puntos de corte aleatorios (al menos 2 posiciones de distancia)
+    i = random.randint(0, n-3)
+    j = random.randint(i+2, n-1)
+    
+    # Crear nuevo tour invirtiendo el segmento entre i y j
+    nuevo_tour = tour.copy()
+    nuevo_tour[i+1:j+1] = reversed(tour[i+1:j+1])
     
     return nuevo_tour
 
@@ -696,15 +932,17 @@ def calcular_fo(tour, matriz):
     
     return distancia
 
-def reemplazo_chu_beasley(poblacion, hijo):
+def reemplazo_chu_beasley(poblacion, hijo, matriz):
     """
-    Reemplazo siguiendo el esquema de Chu-Beasley:
+    Reemplazo siguiendo el esquema de Chu-Beasley con intensificación:
     1. El hijo solo reemplaza a un individuo si es mejor
     2. Se reemplaza al peor individuo que sea diferente al hijo
+    3. Se intensifica la solución mediante rotaciones antes de la inserción
     
     Args:
         poblacion: Lista de individuos que forman la población
         hijo: Nuevo individuo a insertar en la población
+        matriz: Matriz de distancias para calcular FO
         
     Returns:
         bool: True si se realizó un reemplazo, False en caso contrario
@@ -714,26 +952,67 @@ def reemplazo_chu_beasley(poblacion, hijo):
     
     # Verificar que el hijo sea mejor que al menos el peor individuo
     if hijo['fo'] < poblacion[-1]['fo']:
-        # Buscar el individuo más parecido al hijo para reemplazarlo
-        max_similitud = 0
-        indice_reemplazo = -1
+        # Intensificación: explorar rotaciones del tour para mejorar la solución
+        mejor_tour = intensificar_rotaciones(hijo['tour'], hijo['fo'], matriz)
+        hijo['tour'] = mejor_tour['tour']
+        hijo['fo'] = mejor_tour['fo']
         
-        for i in range(len(poblacion)-1, -1, -1):
-            # Calcular similitud (elementos en común)
-            similitud = sum(1 for a, b in zip(poblacion[i]['tour'], hijo['tour']) if a == b)
-            
-            if similitud > max_similitud:
-                max_similitud = similitud
-                indice_reemplazo = i
+        # Actualización
+        print("\n5. ACTUALIZACIÓN")
+        print("-"*40)
+        print(f"Función objetivo del descendiente mejorado: {hijo['fo']}")
+        print(f"Peor individuo en la población: {poblacion[-1]['fo']}")
         
-        # Reemplazar el individuo elegido
-        if indice_reemplazo >= 0:
-            poblacion[indice_reemplazo] = hijo
-            # Reordenar la población
-            poblacion.sort(key=lambda ind: ind['fo'])
-            return True
+        # Reemplazar al peor individuo de la población
+        poblacion[-1] = hijo
+        
+        # Reordenar la población
+        poblacion.sort(key=lambda ind: ind['fo'])
+        print(f"Actualización exitosa. Nueva peor FO: {poblacion[-1]['fo']}")
+        
+        return True
+    else:
+        print("\n5. ACTUALIZACIÓN")
+        print("-"*40)
+        print(f"No hay mejora. FO del descendiente: {hijo['fo']}")
+        print(f"Peor individuo en la población: {poblacion[-1]['fo']}")
+        print("No se realiza actualización.")
+        
+        return False
+
+def intensificar_rotaciones(tour, fo_original, matriz=None):
+    """
+    Intensificación mediante rotaciones de la secuencia.
+    Explora todas las rotaciones posibles del tour para encontrar la mejor.
     
-    return False
+    Args:
+        tour: Tour a rotar
+        fo_original: Función objetivo del tour original
+        matriz: Matriz de distancias (si no se proporciona, se mantiene la FO original)
+        
+    Returns:
+        Diccionario con el mejor tour encontrado y su FO
+    """
+    n = len(tour)
+    mejor_tour = tour
+    mejor_fo = fo_original
+    
+    # Si no se proporciona matriz, devolver el tour original (no podemos calcular la FO)
+    if matriz is None:
+        return {'tour': mejor_tour, 'fo': mejor_fo}
+    
+    # Explorar todas las rotaciones posibles
+    for i in range(1, n):
+        # Rotar el tour (i posiciones)
+        tour_rotado = tour[i:] + tour[:i]
+        fo_rotado = calcular_fo(tour_rotado, matriz)
+        
+        # Actualizar si encontramos una mejor solución
+        if fo_rotado < mejor_fo:
+            mejor_tour = tour_rotado
+            mejor_fo = fo_rotado
+    
+    return {'tour': mejor_tour, 'fo': mejor_fo}
 
 def generar_perturbaciones_swap_exactas(tours_semilla, matriz, total_requerido, nombres_heuristicas=None):
     """

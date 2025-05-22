@@ -15,12 +15,10 @@ import math
 from leerInformacion import cargarCaso
 from matrizDistancias import matrizEuclidiana, distanciaTour
 from heuristicas import heuristicaVecinoMasCercano, heuristicaInsercionMasCercana
-from heuristicas import heuristicaInsercionMasLejana, heuristicaSavings, heuristicaChristofides
 from codificacionVecindarios import two_opt
-from busquedaLocal import busqueda_local_mejor_mejora, busqueda_local_primera_mejora, ejecutar_busqueda_local
-from perturbacion import perturbacion_3opt, perturbacion_parcial
-from ils import ils_algorithm, ejecutar_ils_completo
-from esqueletoConcurrencia import vecinos_concurrentes
+from busquedaLocal import busqueda_local_mejor_mejora, busqueda_local_primera_mejora
+from perturbacion import perturbacion_3opt
+from ils import ils_algorithm
 from geneticos import algoritmo_genetico_chu_beasley
 import random
 
