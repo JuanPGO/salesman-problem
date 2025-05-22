@@ -252,137 +252,6 @@ def generar_individuos_aleatorios(caso, matriz, cantidad, poblacion_existente):
     
     return individuos_aleatorios
 
-def aplicar_perturbacion_swap(lista_compartida, tour_base, matriz, n_perturbaciones=1, origen_heuristica=None):
-    """
-    Aplica perturbaciones mediante intercambio de ciudades (swap)
-    
-    Args:
-        lista_compartida: Lista compartida para almacenar resultados
-        tour_base: Tour base para realizar perturbaciones
-        matriz: Matriz de distancias
-        n_perturbaciones: Número de perturbaciones a realizar
-        origen_heuristica: Nombre de la heurística de origen del tour base
-    """
-    n = len(tour_base)
-    mejor_tour = None
-    mejor_fo = float('inf')
-    
-    for _ in range(n_perturbaciones):
-        # Perturbación mediante intercambio de dos ciudades
-        nuevo_tour = tour_base.copy()
-        num_swaps = random.randint(1, min(5, n//10 + 1))
-        
-        for _ in range(num_swaps):
-            i, j = random.sample(range(n), 2)
-            nuevo_tour[i], nuevo_tour[j] = nuevo_tour[j], nuevo_tour[i]
-        
-        # Calcular FO
-        fo = calcular_fo(nuevo_tour, matriz)
-        
-        if fo < mejor_fo:
-            mejor_fo = fo
-            mejor_tour = nuevo_tour
-    
-    if mejor_tour:
-        resultado = {
-            'tour': mejor_tour,
-            'fo': mejor_fo,
-            'tipo': 'swap',
-            'origen': origen_heuristica
-        }
-        lista_compartida.append(resultado)
-
-def generar_perturbaciones_swap(tours_semilla, matriz, n_perturbaciones, nombres_heuristicas=None):
-    """
-    Genera perturbaciones usando únicamente el operador swap (intercambio de ciudades)
-    
-    Args:
-        tours_semilla: Lista de tours base para generar perturbaciones
-        matriz: Matriz de distancias
-        n_perturbaciones: Número de perturbaciones a generar por tour semilla
-        nombres_heuristicas: Lista con los nombres de las heurísticas correspondientes a cada tour
-        
-    Returns:
-        Lista de perturbaciones generadas
-    """
-    # Si no se proporcionan nombres, usar valores por defecto
-    if nombres_heuristicas is None:
-        nombres_heuristicas = [f"Heurística {i+1}" for i in range(len(tours_semilla))]
-    
-    # Instanciar el administrador de procesos
-    manager = mp.Manager()
-    # Creamos la memoria compartida
-    lista_compartida = manager.list()
-    
-    # Lista para almacenar todos los procesos
-    todos_procesos = []
-    
-    # Crear procesos para cada tour semilla
-    for i, tour_base in enumerate(tours_semilla):
-        proceso = mp.Process(
-            target=aplicar_perturbacion_swap,
-            args=(lista_compartida, tour_base, matriz, n_perturbaciones, nombres_heuristicas[i])
-        )
-        todos_procesos.append(proceso)
-    
-    # Iniciar medición de tiempo
-    tiempo_inicio = perf_counter()
-    
-    # Iniciar todos los procesos
-    for proceso in todos_procesos:
-        proceso.start()
-    
-    # Esperar a que todos los procesos terminen
-    for proceso in todos_procesos:
-        proceso.join()
-    
-    # Finalizar medición de tiempo
-    tiempo_fin = perf_counter()
-    tiempo_ejecucion = tiempo_fin - tiempo_inicio
-    
-    print(f"Tiempo total de generación de perturbaciones swap: {tiempo_ejecucion:.4f}s")
-    print(f"Total de perturbaciones swap generadas: {len(lista_compartida)}")
-    
-    # Convertir a lista normal y ordenar por calidad (menor FO es mejor)
-    perturbaciones = list(lista_compartida)
-    perturbaciones.sort(key=lambda x: x['fo'])
-    
-    return perturbaciones
-
-def generar_individuo_aleatorio(lista_compartida, dimension, matriz, tours_existentes):
-    """
-    Función que ejecutará cada proceso para generar un individuo aleatorio
-    
-    Args:
-        lista_compartida: Lista compartida para almacenar resultados
-        dimension: Dimensión del problema
-        matriz: Matriz de distancias
-        tours_existentes: Lista de tours existentes para evitar duplicados
-    """
-    # Generar tour aleatorio
-    tour_aleatorio = list(range(1, dimension + 1))
-    random.shuffle(tour_aleatorio)
-    
-    # Verificar si es único
-    es_unico = True
-    for tour_existente in tours_existentes:
-        if np.array_equal(np.array(tour_aleatorio), np.array(tour_existente)):
-            es_unico = False
-            break
-            
-    if es_unico:
-        # Calcular FO
-        fo = calcular_fo(tour_aleatorio, matriz)
-        
-        # Crear individuo
-        individuo = {
-            'tour': tour_aleatorio,
-            'fo': fo,
-            'tipo': 'aleatorio'
-        }
-        
-        lista_compartida.append(individuo)
-
 def algoritmo_genetico_chu_beasley(caso, matriz, max_generaciones=100):
     """
     Implementa el algoritmo genético de Chu-Beasley para el TSP
@@ -678,16 +547,19 @@ def cruce_sjx(padre1, padre2):
     for i in range(p, p+q):
         hijo[i] = padre1[i]
     
-    # Completar con genes de la madre, evitando repetidos
-    j = 0
-    for i in range(n):
-        if j == p:
-            j = p + q  # Saltar la sección ya copiada del padre
-        if j < n and hijo[j] == -1:
-            elemento = padre2[i]
-            if elemento not in hijo:
-                hijo[j] = elemento
-                j += 1
+    # Crear lista de elementos que faltan por incluir (los que no están en el hijo)
+    elementos_faltantes = []
+    for elemento in padre2:
+        if elemento not in hijo:
+            elementos_faltantes.append(elemento)
+    
+    # Completar con genes de la madre en las posiciones vacías
+    idx_faltante = 0
+    for j in range(n):
+        if hijo[j] == -1:  # Si la posición está vacía
+            if idx_faltante < len(elementos_faltantes):
+                hijo[j] = elementos_faltantes[idx_faltante]
+                idx_faltante += 1
     
     return hijo
 
@@ -899,13 +771,54 @@ def generar_perturbaciones_swap_exactas(tours_semilla, matriz, total_requerido, 
     
     # Generar perturbaciones para cada tour semilla
     for i, tour_base in enumerate(tours_semilla):
-        perturbaciones_tour = generar_perturbaciones_para_tour(
-            tour_base, 
-            matriz, 
-            perturbaciones_por_tour[i], 
-            nombres_heuristicas[i],
-            perturbaciones  # Pasar las perturbaciones ya generadas para evitar duplicados
-        )
+        n_perturbaciones = perturbaciones_por_tour[i]
+        origen_heuristica = nombres_heuristicas[i]
+        
+        # Función integrada para generar perturbaciones para este tour
+        n = len(tour_base)
+        intentos = 0
+        max_intentos = n_perturbaciones * 10  # Limitar intentos para evitar bucles infinitos
+        
+        # Tours existentes para verificar unicidad
+        tours_existentes = [p['tour'] for p in perturbaciones] if perturbaciones else []
+        
+        # Perturbaciones generadas para este tour
+        perturbaciones_tour = []
+        
+        while len(perturbaciones_tour) < n_perturbaciones and intentos < max_intentos:
+            # Perturbación mediante intercambio de dos ciudades
+            nuevo_tour = tour_base.copy()
+            num_swaps = random.randint(1, min(5, n//10 + 1))
+            
+            for _ in range(num_swaps):
+                i, j = random.sample(range(n), 2)
+                nuevo_tour[i], nuevo_tour[j] = nuevo_tour[j], nuevo_tour[i]
+            
+            # Calcular FO
+            fo = calcular_fo(nuevo_tour, matriz)
+            
+            # Verificar si es único
+            es_unico = True
+            for tour_existente in tours_existentes + [p['tour'] for p in perturbaciones_tour]:
+                if np.array_equal(np.array(nuevo_tour), np.array(tour_existente)):
+                    es_unico = False
+                    break
+            
+            if es_unico:
+                resultado = {
+                    'tour': nuevo_tour,
+                    'fo': fo,
+                    'tipo': 'swap',
+                    'origen': origen_heuristica
+                }
+                perturbaciones_tour.append(resultado)
+            
+            intentos += 1
+        
+        if len(perturbaciones_tour) < n_perturbaciones:
+            print(f"Advertencia: No se pudieron generar {n_perturbaciones} perturbaciones únicas para {origen_heuristica}. Se generaron {len(perturbaciones_tour)}")
+        
+        # Añadir las perturbaciones de este tour a la lista general
         perturbaciones.extend(perturbaciones_tour)
     
     # Finalizar medición de tiempo
@@ -915,71 +828,6 @@ def generar_perturbaciones_swap_exactas(tours_semilla, matriz, total_requerido, 
     print(f"Tiempo total de generación de perturbaciones swap: {tiempo_ejecucion:.4f}s")
     
     return perturbaciones
-
-def generar_perturbaciones_para_tour(tour_base, matriz, n_perturbaciones, origen_heuristica, perturbaciones_existentes=None):
-    """
-    Aplica exactamente n_perturbaciones mediante intercambio de ciudades (swap) para un tour específico,
-    asegurándose de que todas sean diferentes entre sí y diferentes de las perturbaciones existentes.
-    
-    Args:
-        tour_base: Tour base para realizar perturbaciones
-        matriz: Matriz de distancias
-        n_perturbaciones: Número exacto de perturbaciones a realizar
-        origen_heuristica: Nombre de la heurística de origen del tour base
-        perturbaciones_existentes: Lista de perturbaciones ya generadas para evitar duplicados
-        
-    Returns:
-        Lista de perturbaciones generadas para este tour
-    """
-    if perturbaciones_existentes is None:
-        perturbaciones_existentes = []
-    
-    n = len(tour_base)
-    perturbaciones_generadas = []
-    intentos = 0
-    max_intentos = n_perturbaciones * 10  # Limitar intentos para evitar bucles infinitos
-    
-    tours_existentes = []
-    for p in perturbaciones_existentes:
-        if isinstance(p, dict) and 'tour' in p:
-            tours_existentes.append(p['tour'])
-        else:
-            tours_existentes.append(p)
-    
-    while len(perturbaciones_generadas) < n_perturbaciones and intentos < max_intentos:
-        # Perturbación mediante intercambio de dos ciudades
-        nuevo_tour = tour_base.copy()
-        num_swaps = random.randint(1, min(5, n//10 + 1))
-        
-        for _ in range(num_swaps):
-            i, j = random.sample(range(n), 2)
-            nuevo_tour[i], nuevo_tour[j] = nuevo_tour[j], nuevo_tour[i]
-        
-        # Calcular FO
-        fo = calcular_fo(nuevo_tour, matriz)
-        
-        # Verificar si es único
-        es_unico = True
-        for tour_existente in tours_existentes + [p['tour'] for p in perturbaciones_generadas]:
-            if np.array_equal(np.array(nuevo_tour), np.array(tour_existente)):
-                es_unico = False
-                break
-        
-        if es_unico:
-            resultado = {
-                'tour': nuevo_tour,
-                'fo': fo,
-                'tipo': 'swap',
-                'origen': origen_heuristica
-            }
-            perturbaciones_generadas.append(resultado)
-        
-        intentos += 1
-    
-    if len(perturbaciones_generadas) < n_perturbaciones:
-        print(f"Advertencia: No se pudieron generar {n_perturbaciones} perturbaciones únicas para {origen_heuristica}. Se generaron {len(perturbaciones_generadas)}")
-    
-    return perturbaciones_generadas
 
 if __name__ == "__main__":
     print("Este módulo contiene implementaciones de algoritmos genéticos para el TSP.")
