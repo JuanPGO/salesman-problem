@@ -153,6 +153,37 @@ def ejecutar_algoritmo_ils(archivo_instancia: str) -> Dict:
     print(f"    Mejoras encontradas: {resultado_ils['mejoras_encontradas']}")
     print(f"    Iteraciones totales: {resultado_ils['iteraciones_totales']}")
     
+    # Preparar resultados para las gráficas
+    resultados_completos = {
+        'vecino_mas_cercano': {
+            'distancia': distancia_vcn,
+            'tiempo': tiempo_vcn
+        },
+        'insercion_mas_cercana': {
+            'distancia': distancia_imc,
+            'tiempo': tiempo_imc
+        },
+        'busqueda_local_mejor_mejora': {
+            'distancia': resultado_bl_mejor['distancia'],
+            'tiempo': tiempo_bl_mejor
+        },
+        'busqueda_local_primera_mejora': {
+            'distancia': resultado_bl_primera['distancia'],
+            'tiempo': tiempo_bl_primera
+        },
+        'ils_basico': {
+            'distancia': resultado_ils['distancia'],
+            'tiempo': tiempo_ils,
+            'historial': resultado_ils['historial_mejoras']
+        }
+    }
+    
+    # Preguntar si se desean generar gráficas
+    generar_graficas = input("\n¿Desea generar gráficas comparativas? [s/N]: ")
+    if generar_graficas.lower() == 's':
+        print("\nGenerando gráficas...")
+        generar_graficas_comparativas(resultados_completos, nombre_instancia)
+    
     return resultado_ils
 
 def ejecutar_algoritmo_genetico(archivo_instancia: str) -> Dict:
