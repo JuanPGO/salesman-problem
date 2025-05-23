@@ -694,8 +694,6 @@ def cruce_pmx(padre1, padre2):
     """
     # Verificar que los padres tengan la misma longitud
     if len(padre1) != len(padre2):
-        print(f"Error: Los padres tienen longitudes diferentes: {len(padre1)} y {len(padre2)}")
-        # Devolver copia del padre1 como medida de emergencia
         return padre1.copy()
     
     n = len(padre1)
@@ -703,43 +701,52 @@ def cruce_pmx(padre1, padre2):
     punto1 = random.randint(0, n-2)
     punto2 = random.randint(punto1+1, n-1)
     
-    # Inicializar hijo como una copia de padre2
-    hijo = padre2.copy()
+    # Inicializar hijo
+    hijo = [-1] * n
     
-    # Mapeo de valores para la corrección
-    mapeo = {}
-    
-    # Primera fase: copiar segmento de padre1 y establecer mapeo
+    # Paso 1: Copiar el segmento del padre1
     for i in range(punto1, punto2+1):
-        gen_padre1 = padre1[i]
-        gen_padre2 = padre2[i]
-        
-        hijo[i] = gen_padre1  # Copiamos el gen del padre1
-        
-        if gen_padre1 != gen_padre2:
-            mapeo[gen_padre2] = gen_padre1
+        hijo[i] = padre1[i]
     
-    # Segunda fase: corregir duplicados fuera del segmento
+    # Paso 2: Crear mapeo de valores
+    mapeo = {}
+    for i in range(punto1, punto2+1):
+        if padre1[i] != padre2[i]:
+            mapeo[padre2[i]] = padre1[i]
+    
+    # Paso 3: Llenar las posiciones restantes
     for i in range(n):
-        # Solo procesar índices fuera del segmento
-        if i < punto1 or i > punto2:
-            # Verificar que estamos dentro del rango válido
-            if i < len(hijo):
-                gen = hijo[i]
-                # Aplicar el mapeo para resolver conflictos
-                # Usar un contador para evitar ciclos infinitos
-                contador = 0
-                while gen in mapeo and contador < n:
-                    gen = mapeo[gen]
-                    contador += 1
-                hijo[i] = gen
+        if i < punto1 or i > punto2:  # Solo procesar posiciones fuera del segmento
+            valor = padre2[i]
+            
+            # Seguir el mapeo hasta encontrar un valor que no esté en el segmento
+            while valor in mapeo:
+                valor = mapeo[valor]
+            
+            hijo[i] = valor
     
-    # Verificar validez del tour (debe contener todos los nodos una sola vez)
-    if len(set(hijo)) != n:
-        print("Advertencia: PMX generó un tour inválido. Usando padre1 como respaldo.")
-        return padre1.copy()
+    # Verificación final
+    if len(set(hijo)) == n and -1 not in hijo:
+        return hijo
     
-    return hijo
+    # Si algo salió mal, intentar reparar el tour
+    valores_faltantes = set(range(1, n+1)) - set(hijo)
+    valores_duplicados = [x for x in hijo if hijo.count(x) > 1]
+    
+    if valores_duplicados and valores_faltantes:
+        for i, valor in enumerate(hijo):
+            if valor in valores_duplicados and valor != padre1[i]:
+                valor_faltante = valores_faltantes.pop()
+                hijo[i] = valor_faltante
+                if not valores_faltantes:
+                    break
+    
+    # Verificación final después de la reparación
+    if len(set(hijo)) == n and -1 not in hijo:
+        return hijo
+        
+    # Si aún no es válido, devolver una copia del padre1
+    return padre1.copy()
 
 def cruce_obx(padre1, padre2):
     """
