@@ -5,16 +5,12 @@ Script principal para ejecutar y comparar todos los algoritmos del TSP implement
 import time
 import os
 import matplotlib.pyplot as plt
-from typing import List, Dict
-import numpy as np
-import multiprocessing as mp
-from time import perf_counter
-import math
+from typing import Dict
 
 # Importar todos los módulos necesarios
 from leerInformacion import cargarCaso
 from matrizDistancias import matrizEuclidiana, distanciaTour
-from heuristicas import heuristicaVecinoMasCercano, heuristicaInsercionMasCercana
+from heuristicas import heuristicaVecinoMasCercano, heuristicaInsercionMasCercana, heuristicaInsercionMasLejana, heuristicaSavings, heuristicaChristofides
 from codificacionVecindarios import two_opt
 from busquedaLocal import busqueda_local_mejor_mejora, busqueda_local_primera_mejora
 from perturbacion import perturbacion_3opt
@@ -205,6 +201,50 @@ def ejecutar_algoritmo_genetico(archivo_instancia: str) -> Dict:
     
     print(f"\nEjecutando Algoritmo Genético con el dataset {nombre_instancia}...")
     
+    # Ejecutar heurísticas constructivas para comparación
+    print("\nEjecutando heurísticas constructivas para comparación...")
+    
+    # Vecino más cercano
+    inicio = time.time()
+    resultado_vcn = heuristicaVecinoMasCercano(caso, matriz)
+    tiempo_vcn = time.time() - inicio
+    distancia_vcn = distanciaTour(resultado_vcn, matriz)
+    print(f"Vecino más cercano: {distancia_vcn} (tiempo: {tiempo_vcn:.4f}s)")
+    
+    # Inserción más cercana
+    inicio = time.time()
+    resultado_imc = heuristicaInsercionMasCercana(caso, matriz)
+    tiempo_imc = time.time() - inicio
+    distancia_imc = distanciaTour(resultado_imc, matriz)
+    print(f"Inserción más cercana: {distancia_imc} (tiempo: {tiempo_imc:.4f}s)")
+    
+    # Inserción más lejana
+    inicio = time.time()
+    resultado_iml = heuristicaInsercionMasLejana(caso, matriz)
+    tiempo_iml = time.time() - inicio
+    distancia_iml = distanciaTour(resultado_iml, matriz)
+    print(f"Inserción más lejana: {distancia_iml} (tiempo: {tiempo_iml:.4f}s)")
+    
+    # Savings
+    inicio = time.time()
+    resultado_savings = heuristicaSavings(caso, matriz)
+    tiempo_savings = time.time() - inicio
+    distancia_savings = distanciaTour(resultado_savings, matriz)
+    print(f"Savings: {distancia_savings} (tiempo: {tiempo_savings:.4f}s)")
+    
+    # Christofides
+    try:
+        inicio = time.time()
+        resultado_christofides = heuristicaChristofides(caso, matriz)
+        tiempo_christofides = time.time() - inicio
+        distancia_christofides = distanciaTour(resultado_christofides, matriz)
+        print(f"Christofides: {distancia_christofides} (tiempo: {tiempo_christofides:.4f}s)")
+    except Exception as e:
+        print(f"No se pudo ejecutar Christofides: {e}")
+        resultado_christofides = resultado_vcn  # Usar VCN como fallback
+        tiempo_christofides = 0
+        distancia_christofides = distancia_vcn
+    
     # Ejecutar algoritmo genético
     inicio = time.time()
     resultado_ga = algoritmo_genetico_chu_beasley(caso, matriz)
@@ -219,17 +259,48 @@ def ejecutar_algoritmo_genetico(archivo_instancia: str) -> Dict:
     print(f"Tiempo total: {tiempo_ga:.4f} segundos")
     print(f"Mejoras encontradas: {resultado_ga['mejoras']}")
     
-    # 3. Generar gráficas
+    # Preparar resultados para las gráficas
+    resultados_completos = {
+        'tour': resultado_ga['tour'],
+        'distancia': distancia,
+        'tiempo': tiempo_ga,
+        'mejoras': resultado_ga['mejoras'],
+        'historial': resultado_ga['historial'],
+        'heuristicas': {
+            'vcn': {
+                'distancia': distancia_vcn,
+                'tiempo': tiempo_vcn
+            },
+            'imc': {
+                'distancia': distancia_imc,
+                'tiempo': tiempo_imc
+            },
+            'iml': {
+                'distancia': distancia_iml,
+                'tiempo': tiempo_iml
+            },
+            'savings': {
+                'distancia': distancia_savings,
+                'tiempo': tiempo_savings
+            },
+            'christofides': {
+                'distancia': distancia_christofides,
+                'tiempo': tiempo_christofides
+            }
+        }
+    }
+    
+    # Generar gráficas
     generar_graficas = input("\n¿Desea generar gráficas del algoritmo genético? [s/N]: ")
     if generar_graficas.lower() == 's':
         print("\nGenerando gráficas...")
-        generar_grafica_convergencia_ga(resultado_ga, nombre_instancia)
+        generar_graficas_comparativas_ga(resultados_completos, nombre_instancia)
     
-    return resultado_ga
+    return resultados_completos
 
-def generar_grafica_convergencia_ga(resultados: Dict, nombre_instancia: str):
+def generar_graficas_comparativas_ga(resultados: Dict, nombre_instancia: str):
     """
-    Genera una gráfica de convergencia para el algoritmo genético.
+    Genera gráficas comparativas para el algoritmo genético.
     
     Args:
         resultados: Diccionario con los resultados del algoritmo
@@ -239,7 +310,7 @@ def generar_grafica_convergencia_ga(resultados: Dict, nombre_instancia: str):
     if not os.path.exists('graficas'):
         os.makedirs('graficas')
     
-    # Gráfica de convergencia
+    # 1. Gráfica de convergencia
     plt.figure(figsize=(12, 6))
     
     historial = resultados['historial']
@@ -253,9 +324,69 @@ def generar_grafica_convergencia_ga(resultados: Dict, nombre_instancia: str):
     
     plt.tight_layout()
     plt.savefig(f'graficas/{nombre_instancia}_convergencia_ga.png')
-    plt.close('all')
+    plt.close()
     
-    print(f"Gráfica guardada en 'graficas/{nombre_instancia}_convergencia_ga.png'")
+    # 2. Gráfica de calidad (comparativa con otros algoritmos)
+    plt.figure(figsize=(12, 6))
+    
+    # Comparar con todas las heurísticas constructivas
+    algoritmos = [
+        'Vecino más cercano',
+        'Inserción más cercana',
+        'Inserción más lejana',
+        'Savings',
+        'Christofides',
+        'Algoritmo Genético'
+    ]
+    
+    distancias = [
+        resultados['heuristicas']['vcn']['distancia'],
+        resultados['heuristicas']['imc']['distancia'],
+        resultados['heuristicas']['iml']['distancia'],
+        resultados['heuristicas']['savings']['distancia'],
+        resultados['heuristicas']['christofides']['distancia'],
+        resultados['distancia']
+    ]
+    
+    plt.barh(algoritmos, distancias, color='skyblue')
+    plt.xlabel('Distancia (menor es mejor)')
+    plt.title(f'Comparativa de calidad - {nombre_instancia}')
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+    
+    # Anotar valores
+    for i, v in enumerate(distancias):
+        plt.text(v + max(distancias)*0.01, i, str(v), va='center')
+    
+    plt.tight_layout()
+    plt.savefig(f'graficas/{nombre_instancia}_calidad_ga.png')
+    plt.close()
+    
+    # 3. Gráfica de tiempos
+    plt.figure(figsize=(12, 6))
+    
+    tiempos = [
+        resultados['heuristicas']['vcn']['tiempo'],
+        resultados['heuristicas']['imc']['tiempo'],
+        resultados['heuristicas']['iml']['tiempo'],
+        resultados['heuristicas']['savings']['tiempo'],
+        resultados['heuristicas']['christofides']['tiempo'],
+        resultados['tiempo']
+    ]
+    
+    plt.barh(algoritmos, tiempos, color='salmon')
+    plt.xlabel('Tiempo (segundos)')
+    plt.title(f'Comparativa de tiempos - {nombre_instancia}')
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+    
+    # Anotar valores
+    for i, v in enumerate(tiempos):
+        plt.text(v + max(tiempos)*0.05, i, f"{v:.4f}s", va='center')
+    
+    plt.tight_layout()
+    plt.savefig(f'graficas/{nombre_instancia}_tiempos_ga.png')
+    plt.close()
+    
+    print(f"Gráficas guardadas en directorio 'graficas/'")
 
 def generar_graficas_comparativas(resultados: Dict, nombre_instancia: str):
     """
