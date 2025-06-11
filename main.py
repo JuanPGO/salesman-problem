@@ -4,6 +4,7 @@ Script principal para ejecutar y comparar todos los algoritmos del TSP implement
 
 import time
 import os
+import sys
 import matplotlib.pyplot as plt
 from typing import Dict
 
@@ -18,37 +19,88 @@ from ils import ils_algorithm
 from geneticos import algoritmo_genetico_chu_beasley
 import random
 
-def listar_archivos_tsp():
-    """Listar todos los archivos .tsp en el directorio data/"""
-    archivos = os.listdir("data")
-    return [archivo for archivo in archivos if archivo.endswith(".tsp")]
-
-def seleccionar_dataset():
+def validar_archivo_tsp(ruta_archivo: str) -> bool:
     """
-    Muestra los datasets disponibles y permite al usuario seleccionar uno
+    Valida que el archivo TSP existe y es accesible.
     
+    Args:
+        ruta_archivo: Ruta al archivo TSP
+        
     Returns:
-        str: Nombre del archivo del dataset seleccionado o None si no hay datasets
+        bool: True si el archivo es válido, False caso contrario
     """
-    archivos_tsp = listar_archivos_tsp()
+    # Verificar si el archivo existe
+    if not os.path.exists(ruta_archivo):
+        print(f"Error: El archivo '{ruta_archivo}' no existe.")
+        return False
     
-    if not archivos_tsp:
-        print("Error: No se encontraron datasets en el directorio 'data/'")
-        return None
+    # Verificar si es un archivo (no un directorio)
+    if not os.path.isfile(ruta_archivo):
+        print(f"Error: '{ruta_archivo}' no es un archivo válido.")
+        return False
     
-    print("\n=== DATASETS DISPONIBLES ===")
-    for i, archivo in enumerate(archivos_tsp, 1):
-        print(f"{i}. {archivo}")
+    # Verificar si tiene extensión .tsp
+    if not ruta_archivo.lower().endswith('.tsp'):
+        print(f"Advertencia: El archivo '{ruta_archivo}' no tiene extensión .tsp")
+        respuesta = input("¿Desea continuar de todas formas? [s/N]: ")
+        if respuesta.lower() != 's':
+            return False
     
-    while True:
-        try:
-            opcion = int(input("\nSeleccione un dataset (número): "))
-            if 1 <= opcion <= len(archivos_tsp):
-                return archivos_tsp[opcion-1]
-            else:
-                print(f"Seleccione un número entre 1 y {len(archivos_tsp)}")
-        except ValueError:
-            print("Por favor, ingrese un número válido")
+    # Verificar si se puede leer el archivo
+    try:
+        with open(ruta_archivo, 'r') as f:
+            f.read(1)  # Intentar leer al menos un carácter
+    except Exception as e:
+        print(f"Error: No se puede leer el archivo '{ruta_archivo}'. {e}")
+        return False
+    
+    return True
+
+def mostrar_ayuda():
+    """
+    Muestra la información de ayuda sobre cómo usar el programa.
+    """
+    print("=== AYUDA DEL PROGRAMA TSP ===")
+    print("\nUso:")
+    print("  python main.py <ruta_archivo>     - Ejecuta con el archivo especificado")
+    print("  python main.py --help            - Muestra esta ayuda")
+    print("\nEjemplos:")
+    print("  python main.py data/wi29.tsp")
+    print("  python main.py \"C:\\ruta\\archivo\\tsp\\wi29.tsp\"")
+    print("\nNota: Es OBLIGATORIO especificar la ruta del archivo TSP como argumento.")
+
+# FUNCIONES COMENTADAS - YA NO SE USAN CON LA NUEVA FUNCIONALIDAD
+# def listar_archivos_tsp():
+#     """Listar todos los archivos .tsp en el directorio data/"""
+#     archivos = os.listdir("data")
+#     return [archivo for archivo in archivos if archivo.endswith(".tsp")]
+
+# def seleccionar_dataset():
+#     """
+#     Muestra los datasets disponibles y permite al usuario seleccionar uno
+#     
+#     Returns:
+#         str: Nombre del archivo del dataset seleccionado o None si no hay datasets
+#     """
+#     archivos_tsp = listar_archivos_tsp()
+#     
+#     if not archivos_tsp:
+#         print("Error: No se encontraron datasets en el directorio 'data/'")
+#         return None
+#     
+#     print("\n=== DATASETS DISPONIBLES ===")
+#     for i, archivo in enumerate(archivos_tsp, 1):
+#         print(f"{i}. {archivo}")
+#     
+#     while True:
+#         try:
+#             opcion = int(input("\nSeleccione un dataset (número): "))
+#             if 1 <= opcion <= len(archivos_tsp):
+#                 return archivos_tsp[opcion-1]
+#             else:
+#                 print(f"Seleccione un número entre 1 y {len(archivos_tsp)}")
+#         except ValueError:
+#             print("Por favor, ingrese un número válido")
 
 def ejecutar_algoritmo_ils(archivo_instancia: str) -> Dict:
     """
@@ -469,12 +521,17 @@ def generar_graficas_comparativas(resultados: Dict, nombre_instancia: str):
     plt.close('all')
     print(f"Gráficas guardadas en directorio 'graficas/'")
 
-def menu_principal():
+def menu_principal_con_archivo(archivo_tsp: str):
     """
-    Muestra el menú principal y maneja la selección del usuario
+    Muestra el menú principal cuando se especifica un archivo específico.
+    
+    Args:
+        archivo_tsp: Ruta al archivo TSP a procesar
     """
+    nombre_archivo = os.path.basename(archivo_tsp)
+    
     while True:
-        print("\n=== MENÚ PRINCIPAL ===")
+        print(f"\n=== MENÚ PRINCIPAL - ARCHIVO: {nombre_archivo} ===")
         print("1. Algoritmo TSP ILS (Iterated Local Search)")
         print("2. Algoritmo Genético (Chu-Beasley)")
         print("3. Salir")
@@ -482,14 +539,12 @@ def menu_principal():
         opcion = input("\nSeleccione una opción: ")
         
         if opcion == '1':
-            dataset = seleccionar_dataset()
-            if dataset:
-                ejecutar_algoritmo_ils(f"data/{dataset}")
+            print(f"\nEjecutando ILS con archivo: {archivo_tsp}")
+            ejecutar_algoritmo_ils(archivo_tsp)
         
         elif opcion == '2':
-            dataset = seleccionar_dataset()
-            if dataset:
-                ejecutar_algoritmo_genetico(f"data/{dataset}")
+            print(f"\nEjecutando Algoritmo Genético con archivo: {archivo_tsp}")
+            ejecutar_algoritmo_genetico(archivo_tsp)
         
         elif opcion == '3':
             print("Saliendo del programa...")
@@ -498,5 +553,52 @@ def menu_principal():
         else:
             print("Opción no válida. Intente de nuevo.")
 
+# def menu_principal():
+#     """
+#     Muestra el menú principal y maneja la selección del usuario
+#     """
+#     while True:
+#         print("\n=== MENÚ PRINCIPAL ===")
+#         print("1. Algoritmo TSP ILS (Iterated Local Search)")
+#         print("2. Algoritmo Genético (Chu-Beasley)")
+#         print("3. Salir")
+#         
+#         opcion = input("\nSeleccione una opción: ")
+#         
+#         if opcion == '1':
+#             dataset = seleccionar_dataset()
+#             if dataset:
+#                 ejecutar_algoritmo_ils(f"data/{dataset}")
+#         
+#         elif opcion == '2':
+#             dataset = seleccionar_dataset()
+#             if dataset:
+#                 ejecutar_algoritmo_genetico(f"data/{dataset}")
+#         
+#         elif opcion == '3':
+#             print("Saliendo del programa...")
+#             break
+#         
+#         else:
+#             print("Opción no válida. Intente de nuevo.")
+
 if __name__ == "__main__":
-    menu_principal()
+    # Verificar si se pasaron argumentos de línea de comandos
+    if len(sys.argv) > 1:
+        # Si el primer argumento es --help, mostrar ayuda
+        if sys.argv[1] in ["--help", "-h", "help"]:
+            mostrar_ayuda()
+        else:
+            # Validar y usar el archivo especificado
+            archivo_especificado = sys.argv[1]
+            if validar_archivo_tsp(archivo_especificado):
+                menu_principal_con_archivo(archivo_especificado)
+            else:
+                print("\nError: No se pudo cargar el archivo especificado.")
+                print("Use 'python main.py --help' para ver la ayuda.")
+    else:
+        # No se especificó archivo, mostrar error y ayuda
+        print("Error: Debe especificar la ruta del archivo TSP como argumento.")
+        print("\nUso: python main.py <ruta_archivo>")
+        print("Ejemplo: python main.py data/wi29.tsp")
+        print("\nPara más información, use: python main.py --help")
