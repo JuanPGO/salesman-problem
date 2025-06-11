@@ -1,3 +1,5 @@
+# presentado por Juan Camilo Garcia y Juan Pablo Gómez
+
 """
 Script principal para ejecutar y comparar todos los algoritmos del TSP implementados.
 """

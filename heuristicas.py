@@ -1,3 +1,4 @@
+# presentado por Juan Camilo Garcia y Juan Pablo Gómez
 from leerInformacion import cargarCaso
 from matrizDistancias import matrizEuclidiana, distanciaTour
 from codificacionVecindarios import *

@@ -1,3 +1,4 @@
+
 from leerInformacion import cargarCaso
 from matrizDistancias import matrizEuclidiana, distanciaTour
 from codificacionVecindarios import *

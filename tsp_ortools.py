@@ -1,3 +1,4 @@
+# presentado por Juan Camilo Garcia y Juan Pablo Gómez
 """
 Modelo del Traveling Salesman Problem (TSP) usando OR-Tools.
 Implementación simple basada en metaheurísticas.
