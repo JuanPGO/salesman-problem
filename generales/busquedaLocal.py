@@ -7,8 +7,8 @@ from typing import List, Dict, Callable
 import random
 from copy import deepcopy
 import time
-from codificacionVecindarios import swap2, insert_izquierda, insert_derecha, distanciaTourVecino
-from matrizDistancias import matrizEuclidiana, distanciaTour
+from .codificacionVecindarios import swap2, insert_izquierda, insert_derecha, distanciaTourVecino
+from .matrizDistancias import matrizEuclidiana, distanciaTour
 
 
 def busqueda_local_mejor_mejora(tour_inicial: list, matriz_distancias: list, 
