@@ -7,11 +7,9 @@ from typing import List, Dict, Callable
 import random
 from copy import deepcopy
 import time
-
-# Importar funciones necesarias de otros módulos
 from codificacionVecindarios import swap2, insert_izquierda, insert_derecha, distanciaTourVecino
 from matrizDistancias import matrizEuclidiana, distanciaTour
-from heuristicas import heuristicaVecinoMasCercano, heuristicaInsercionMasCercana
+
 
 def busqueda_local_mejor_mejora(tour_inicial: list, matriz_distancias: list, 
                                funciones_vecindario: List[Callable], max_iter: int = 100) -> dict:
@@ -173,18 +171,3 @@ def ejecutar_busqueda_local(caso, matriz_distancias, heuristica_constructor, vec
         'primera_mejora': resultado_primera_mejora,
         'distancia_inicial': distancia_inicial
     }
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    from leerInformacion import cargarCaso
-    
-    caso = cargarCaso("data/wi29.tsp")
-    matriz = matrizEuclidiana(caso)
-    
-    print("Evaluando con heurística de vecino más cercano:")
-    resultados_vcn = ejecutar_busqueda_local(caso, matriz, heuristicaVecinoMasCercano)
-    
-    print("\n" + "="*50 + "\n")
-    
-    print("Evaluando con heurística de inserción más cercana:")
-    resultados_imc = ejecutar_busqueda_local(caso, matriz, heuristicaInsercionMasCercana) 

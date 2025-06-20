@@ -1,8 +1,12 @@
 
-from leerInformacion import cargarCaso
-from matrizDistancias import matrizEuclidiana, distanciaTour
-from codificacionVecindarios import *
-from heuristicas import *
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from generales.leerInformacion import cargarCaso
+from generales.matrizDistancias import matrizEuclidiana, distanciaTour
+from generales.codificacionVecindarios import *
+from generales.heuristicas import *
 from esqueletoConcurrencia import *
 import os
 import sys

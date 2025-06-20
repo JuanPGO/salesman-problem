@@ -6,9 +6,13 @@ Implementación simple basada en metaheurísticas.
 
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 import time
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from typing import Dict
-from leerInformacion import cargarCaso
-from matrizDistancias import matrizEuclidiana, distanciaTour
+from generales.leerInformacion import cargarCaso
+from generales.matrizDistancias import matrizEuclidiana, distanciaTour
 
 def resolver_tsp_metaheuristicas(
     archivo_instancia,

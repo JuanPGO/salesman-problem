@@ -4,7 +4,7 @@ Proyecto de implementación y comparación de diferentes algoritmos para resolve
 
 **Presentado por:** Juan Camilo García y Juan Pablo Gómez
 
-## 📁 Nueva Estructura del Proyecto
+## 📁 Nueva Estructura del Proyecto (ACTUALIZADA)
 
 ```
 salesman-problem/
@@ -15,7 +15,7 @@ salesman-problem/
 │   ├── uy734.tsp
 │   └── ...
 ├── graficas/                       # Gráficas generadas por los algoritmos
-├── shared/                         # Archivos transversales (compartidos)
+├── generales/                      # Archivos transversales (compartidos)
 │   ├── __init__.py
 │   ├── leerInformacion.py         # Lectura de archivos TSP
 │   ├── matrizDistancias.py        # Cálculo de distancias
@@ -26,14 +26,14 @@ salesman-problem/
 │   ├── leerTour.py                # Lectura de tours
 │   └── cargaCalculoProfe.py       # Utilidades adicionales
 ├── ils/                           # Algoritmo ILS
-│   ├── main_ils.py               # Ejecutable principal ILS
-│   └── ils.py                    # Implementación ILS
+│   ├── main.py                    # Ejecutable principal ILS
+│   └── ils.py                     # Implementación ILS
 ├── genetico/                      # Algoritmo Genético
-│   ├── main_genetico.py          # Ejecutable principal AG
-│   └── geneticos.py              # Implementación AG Chu-Beasley
+│   ├── main.py                    # Ejecutable principal AG
+│   └── geneticos.py               # Implementación AG Chu-Beasley
 ├── ortools/                       # Algoritmo OR-Tools
-│   ├── main_ortools.py           # Ejecutable principal OR-Tools
-│   └── tsp_ortools.py            # Implementación OR-Tools
+│   ├── main.py                    # Ejecutable principal OR-Tools
+│   └── tsp_ortools.py             # Implementación OR-Tools
 ├── main.py                        # ARCHIVO ORIGINAL (obsoleto)
 ├── esqueletoConcurrencia.py       # Esqueleto para concurrencia
 ├── README.md                      # README original
@@ -58,10 +58,10 @@ pip install matplotlib numpy networkx ortools
 cd ils
 
 # Ejecutar con un archivo TSP específico
-python main_ils.py ../data/wi29.tsp
+python main.py ../data/wi29.tsp
 
 # Ver ayuda
-python main_ils.py --help
+python main.py --help
 ```
 
 **Características:**
@@ -78,10 +78,10 @@ python main_ils.py --help
 cd genetico
 
 # Ejecutar con un archivo TSP específico
-python main_genetico.py ../data/wi29.tsp
+python main.py ../data/wi29.tsp
 
 # Ver ayuda
-python main_genetico.py --help
+python main.py --help
 ```
 
 **Características:**
@@ -98,10 +98,10 @@ python main_genetico.py --help
 cd ortools
 
 # Ejecutar con un archivo TSP específico
-python main_ortools.py ../data/wi29.tsp
+python main.py ../data/wi29.tsp
 
 # Ver ayuda
-python main_ortools.py --help
+python main.py --help
 ```
 
 **Características:**
@@ -123,7 +123,7 @@ Las gráficas se guardan en la carpeta `graficas/` en el directorio raíz.
 
 ## 🔧 Archivos Transversales
 
-La carpeta `shared/` contiene todos los módulos compartidos:
+La carpeta `generales/` contiene todos los módulos compartidos:
 
 - **leerInformacion.py:** Parseo de archivos TSP
 - **matrizDistancias.py:** Cálculo de matrices de distancia
@@ -138,30 +138,31 @@ La carpeta `shared/` contiene todos los módulos compartidos:
 
 ```bash
 cd ils
-python main_ils.py ../data/wi29.tsp
+python main.py ../data/wi29.tsp
 ```
 
 ### Ejemplo 2: Ejecutar Algoritmo Genético con dj38.tsp
 
 ```bash
 cd genetico
-python main_genetico.py ../data/dj38.tsp
+python main.py ../data/dj38.tsp
 ```
 
 ### Ejemplo 3: Ejecutar OR-Tools con qa194.tsp
 
 ```bash
 cd ortools
-python main_ortools.py ../data/qa194.tsp
+python main.py ../data/qa194.tsp
 ```
 
 ## 🏗️ Ventajas de la Nueva Estructura
 
-1. **Modularidad:** Cada algoritmo es independiente
-2. **Mantenibilidad:** Fácil modificación y mejora de algoritmos individuales
-3. **Escalabilidad:** Fácil adición de nuevos algoritmos
-4. **Claridad:** Separación clara de responsabilidades
-5. **Reutilización:** Archivos compartidos en `shared/`
+1. **Modularidad:** Cada algoritmo es independiente y ejecutable por separado
+2. **Simplicidad:** Cada main se llama simplemente `main.py` en su carpeta
+3. **Mantenibilidad:** Fácil modificación y mejora de algoritmos individuales
+4. **Escalabilidad:** Fácil adición de nuevos algoritmos
+5. **Claridad:** Separación clara de responsabilidades
+6. **Reutilización:** Archivos compartidos en `generales/`
 
 ## 📋 Migración desde la Estructura Anterior
 
@@ -178,22 +179,38 @@ python main.py data/wi29.tsp
 
 ```bash
 # Para ILS (opción 1)
-cd ils && python main_ils.py ../data/wi29.tsp
+cd ils && python main.py ../data/wi29.tsp
 
 # Para Genético (opción 2)
-cd genetico && python main_genetico.py ../data/wi29.tsp
+cd genetico && python main.py ../data/wi29.tsp
 
 # Para OR-Tools (opción 3)
-cd ortools && python main_ortools.py ../data/wi29.tsp
+cd ortools && python main.py ../data/wi29.tsp
 ```
+
+## 🔧 Correcciones Implementadas
+
+✅ **Carpeta renombrada:** `shared` → `generales`  
+✅ **Archivos main simplificados:** `main_*.py` → `main.py`  
+✅ **Imports corregidos:** Todos los archivos usan imports compatibles  
+✅ **Compatibilidad completa:** Funciona desde cualquier directorio  
+✅ **Imports dinámicos:** Sistema robusto para importaciones
 
 ## 🚦 Estado del Proyecto
 
 - ✅ Fragmentación completada
-- ✅ Archivos transversales organizados
-- ✅ Mains individuales funcionales
+- ✅ Archivos transversales organizados en `generales/`
+- ✅ Mains individuales renombrados a `main.py`
+- ✅ Imports corregidos y verificados
+- ✅ Algoritmos funcionando correctamente
 - ✅ Documentación actualizada
-- ✅ Compatibilidad con estructura anterior mantenida
+
+## ⚠️ Notas Importantes
+
+- El archivo `main.py` original en la raíz es ahora obsoleto
+- Todos los algoritmos funcionan independientemente
+- Los imports han sido corregidos para funcionar desde cualquier ubicación
+- Las gráficas se generan en la carpeta `graficas/` del directorio raíz
 
 ---
 

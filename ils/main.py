@@ -14,12 +14,12 @@ from typing import Dict
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Importar módulos compartidos
-from shared.leerInformacion import cargarCaso
-from shared.matrizDistancias import matrizEuclidiana, distanciaTour
-from shared.heuristicas import heuristicaVecinoMasCercano, heuristicaInsercionMasCercana, heuristicaInsercionMasLejana, heuristicaSavings, heuristicaChristofides
-from shared.codificacionVecindarios import two_opt
-from shared.busquedaLocal import busqueda_local_mejor_mejora, busqueda_local_primera_mejora
-from shared.perturbacion import perturbacion_3opt
+from generales.leerInformacion import cargarCaso
+from generales.matrizDistancias import matrizEuclidiana, distanciaTour
+from generales.heuristicas import heuristicaVecinoMasCercano, heuristicaInsercionMasCercana, heuristicaInsercionMasLejana, heuristicaSavings, heuristicaChristofides
+from generales.codificacionVecindarios import two_opt
+from generales.busquedaLocal import busqueda_local_mejor_mejora, busqueda_local_primera_mejora
+from generales.perturbacion import perturbacion_3opt
 from ils import ils_algorithm
 
 def validar_archivo_tsp(ruta_archivo: str) -> bool:
@@ -65,11 +65,11 @@ def mostrar_ayuda():
     """
     print("=== AYUDA DEL ALGORITMO ILS ===")
     print("\nUso:")
-    print("  python main_ils.py <ruta_archivo>     - Ejecuta ILS con el archivo especificado")
-    print("  python main_ils.py --help            - Muestra esta ayuda")
+    print("  python main.py <ruta_archivo>     - Ejecuta ILS con el archivo especificado")
+    print("  python main.py --help            - Muestra esta ayuda")
     print("\nEjemplos:")
-    print("  python main_ils.py ../data/wi29.tsp")
-    print("  python main_ils.py \"C:\\ruta\\archivo\\tsp\\wi29.tsp\"")
+    print("  python main.py ../data/wi29.tsp")
+    print("  python main.py \"C:\\ruta\\archivo\\tsp\\wi29.tsp\"")
     print("\nNota: Es OBLIGATORIO especificar la ruta del archivo TSP como argumento.")
 
 def ejecutar_algoritmo_ils(archivo_instancia: str) -> Dict:
@@ -303,6 +303,6 @@ if __name__ == "__main__":
     else:
         # No se especificó archivo, mostrar error y ayuda
         print("Error: Debe especificar la ruta del archivo TSP como argumento.")
-        print("\nUso: python main_ils.py <ruta_archivo>")
-        print("Ejemplo: python main_ils.py ../data/wi29.tsp")
-        print("\nPara más información, use: python main_ils.py --help") 
+        print("\nUso: python main.py <ruta_archivo>")
+        print("Ejemplo: python main.py ../data/wi29.tsp")
+        print("\nPara más información, use: python main.py --help") 

@@ -1,7 +1,3 @@
-import pprint as pp
-from leerInformacion import cargarCaso
-from leerTour import cargarTour
-
 def matrizEuclidiana(caso:dict)->list:
     """
     Calcula la matriz de distancias euclidianas entre todas las ciudades.

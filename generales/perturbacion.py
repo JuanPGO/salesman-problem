@@ -4,8 +4,6 @@ Estas funciones permiten escapar de óptimos locales en la búsqueda.
 """
 
 import random
-from typing import List, Tuple
-import time
 
 def perturbacion_double_bridge(tour: list) -> list:
     """
@@ -134,23 +132,3 @@ def perturbacion_parcial(tour: list, porcentaje: float = 0.6) -> list:
         nuevo_tour[i], nuevo_tour[j] = nuevo_tour[j], nuevo_tour[i]
     
     return nuevo_tour
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    # Crear un tour de ejemplo
-    tour_ejemplo = list(range(1, 31))  # Tour con ciudades 1-30
-    
-    print("Tour original:", tour_ejemplo)
-    
-    # Aplicar diferentes perturbaciones
-    print("\nDouble Bridge:")
-    print(perturbacion_double_bridge(tour_ejemplo))
-    
-    print("\nMulti Swap:")
-    print(perturbacion_multi_swap(tour_ejemplo))
-    
-    print("\n3-opt Perturbación:")
-    print(perturbacion_3opt(tour_ejemplo))
-    
-    print("\nPerturbación parcial (60%):")
-    print(perturbacion_parcial(tour_ejemplo)) 

@@ -9,12 +9,16 @@ import os
 from typing import List, Dict, Callable, Tuple
 
 # Importar módulos necesarios
-from leerInformacion import cargarCaso
-from matrizDistancias import matrizEuclidiana, distanciaTour
-from heuristicas import heuristicaVecinoMasCercano, heuristicaInsercionMasCercana
-from codificacionVecindarios import two_opt, distanciaTourVecino
-from busquedaLocal import busqueda_local_mejor_mejora, busqueda_local_primera_mejora
-from perturbacion import perturbacion_3opt, perturbacion_parcial
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from generales.leerInformacion import cargarCaso
+from generales.matrizDistancias import matrizEuclidiana, distanciaTour
+from generales.heuristicas import heuristicaVecinoMasCercano, heuristicaInsercionMasCercana
+from generales.codificacionVecindarios import two_opt, distanciaTourVecino
+from generales.busquedaLocal import busqueda_local_mejor_mejora, busqueda_local_primera_mejora
+from generales.perturbacion import perturbacion_3opt, perturbacion_parcial
 
 def ils_algorithm(caso: dict, matriz_distancias: list, 
                   heuristica_constructor: Callable,

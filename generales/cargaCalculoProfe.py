@@ -90,15 +90,3 @@ def calcularFO_Tour(caso:dict,tour:dict)->int:
     # Retornar la longitud
     return longitud_tour
     
-    
-
-if __name__ == "__main__":
-    
-    caso = leerInstancia(ruta="data/wi29.tsp")
-    tour = leerTour(rutaTour="data/wi29.tour.txt")
-    
-    # # Salida de prueba para la carga
-    # pp.pprint(tour)    
-    # pp.pprint(caso)
-    print("Forma del Profe: ")
-    print(f"Longitud -> {calcularFO_Tour(caso,tour)}")

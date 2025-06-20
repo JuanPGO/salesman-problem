@@ -14,7 +14,7 @@ from typing import Dict
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Importar módulos compartidos
-from shared.leerInformacion import cargarCaso
+from generales.leerInformacion import cargarCaso
 from tsp_ortools import ejecutar_tsp_ortools
 
 def validar_archivo_tsp(ruta_archivo: str) -> bool:
@@ -60,11 +60,11 @@ def mostrar_ayuda():
     """
     print("=== AYUDA DEL TSP CON OR-TOOLS ===")
     print("\nUso:")
-    print("  python main_ortools.py <ruta_archivo>     - Ejecuta OR-Tools con el archivo especificado")
-    print("  python main_ortools.py --help            - Muestra esta ayuda")
+    print("  python main.py <ruta_archivo>     - Ejecuta OR-Tools con el archivo especificado")
+    print("  python main.py --help            - Muestra esta ayuda")
     print("\nEjemplos:")
-    print("  python main_ortools.py ../data/wi29.tsp")
-    print("  python main_ortools.py \"C:\\ruta\\archivo\\tsp\\wi29.tsp\"")
+    print("  python main.py ../data/wi29.tsp")
+    print("  python main.py \"C:\\ruta\\archivo\\tsp\\wi29.tsp\"")
     print("\nNota: Es OBLIGATORIO especificar la ruta del archivo TSP como argumento.")
 
 def ejecutar_algoritmo_ortools(archivo_instancia: str) -> Dict:
@@ -239,10 +239,10 @@ if __name__ == "__main__":
                 ejecutar_algoritmo_ortools(archivo_especificado)
             else:
                 print("\nError: No se pudo cargar el archivo especificado.")
-                print("Use 'python main_ortools.py --help' para ver la ayuda.")
+                print("Use 'python main.py --help' para ver la ayuda.")
     else:
         # No se especificó archivo, mostrar error y ayuda
         print("Error: Debe especificar la ruta del archivo TSP como argumento.")
-        print("\nUso: python main_ortools.py <ruta_archivo>")
-        print("Ejemplo: python main_ortools.py ../data/wi29.tsp")
-        print("\nPara más información, use: python main_ortools.py --help") 
+        print("\nUso: python main.py <ruta_archivo>")
+        print("Ejemplo: python main.py ../data/wi29.tsp")
+        print("\nPara más información, use: python main.py --help") 

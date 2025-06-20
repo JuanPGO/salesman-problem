@@ -1,13 +1,8 @@
 # presentado por Juan Camilo Garcia y Juan Pablo Gómez
-from leerInformacion import cargarCaso
-from matrizDistancias import matrizEuclidiana, distanciaTour
-from codificacionVecindarios import *
+
 import math
 import networkx as nx
 import numpy as np
-
-caso = cargarCaso("data/wi29.tsp")
-matriz = matrizEuclidiana(caso)
 
 def heuristicaVecinoMasCercano(caso:dict, matriz:list) -> dict:
     # Inicializar el resultado en formato similar a cargarTour

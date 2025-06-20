@@ -2,7 +2,7 @@ import random
 import time
 from time import perf_counter
 import multiprocessing as mp
-from codificacionVecindarios import *
+from generales.codificacionVecindarios import *
 import pprint
 
 #¡ trabajar dos funciones y que se ejecuten a la vez
